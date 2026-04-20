@@ -1,0 +1,47 @@
+[
+  {"model": "expedientes.rol", "pk": 1, "fields": {"nombre": "Administrador", "descripcion": "Control total del sistema"}},
+  {"model": "expedientes.rol", "pk": 2, "fields": {"nombre": "Capturista", "descripcion": "Registro y actualización de información"}},
+  {"model": "expedientes.rol", "pk": 3, "fields": {"nombre": "Analista", "descripcion": "Seguimiento e investigación de expedientes"}},
+  {"model": "expedientes.rol", "pk": 4, "fields": {"nombre": "Consulta", "descripcion": "Solo consulta de información"}},
+
+  {"model": "expedientes.area", "pk": 1, "fields": {"nombre": "Dirección de Quejas, Denuncias, Investigación y Situación Patrimonial", "descripcion": "Área principal del sistema"}},
+  {"model": "expedientes.area", "pk": 2, "fields": {"nombre": "Secretaría de Administración", "descripcion": "Área involucrada en expedientes"}},
+  {"model": "expedientes.area", "pk": 3, "fields": {"nombre": "Obras Públicas", "descripcion": "Área involucrada en expedientes"}},
+  {"model": "expedientes.area", "pk": 4, "fields": {"nombre": "Contraloría Interna", "descripcion": "Área de control y seguimiento"}},
+
+  {"model": "expedientes.tiporegistro", "pk": 1, "fields": {"nombre": "Queja"}},
+  {"model": "expedientes.tiporegistro", "pk": 2, "fields": {"nombre": "Denuncia"}},
+
+  {"model": "expedientes.estadoexpediente", "pk": 1, "fields": {"nombre": "Registrado"}},
+  {"model": "expedientes.estadoexpediente", "pk": 2, "fields": {"nombre": "En revisión"}},
+  {"model": "expedientes.estadoexpediente", "pk": 3, "fields": {"nombre": "En investigación"}},
+  {"model": "expedientes.estadoexpediente", "pk": 4, "fields": {"nombre": "Activo"}},
+  {"model": "expedientes.estadoexpediente", "pk": 5, "fields": {"nombre": "Inactivo"}},
+  {"model": "expedientes.estadoexpediente", "pk": 6, "fields": {"nombre": "Concluido"}},
+
+  {"model": "expedientes.motivoconclusion", "pk": 1, "fields": {"nombre": "Acuerdo de archivo"}},
+  {"model": "expedientes.motivoconclusion", "pk": 2, "fields": {"nombre": "Acuerdo de calificación de la falta administrativa"}},
+
+  {"model": "expedientes.tipodocumento", "pk": 1, "fields": {"nombre": "Escrito"}},
+  {"model": "expedientes.tipodocumento", "pk": 2, "fields": {"nombre": "Oficio"}},
+  {"model": "expedientes.tipodocumento", "pk": 3, "fields": {"nombre": "Acuerdo"}},
+  {"model": "expedientes.tipodocumento", "pk": 4, "fields": {"nombre": "Notificación"}},
+  {"model": "expedientes.tipodocumento", "pk": 5, "fields": {"nombre": "Anexo"}},
+  {"model": "expedientes.tipodocumento", "pk": 6, "fields": {"nombre": "Otro"}},
+
+  {"model": "expedientes.tipoparticipacion", "pk": 1, "fields": {"nombre": "Responsable"}},
+  {"model": "expedientes.tipoparticipacion", "pk": 2, "fields": {"nombre": "Consulta"}},
+  {"model": "expedientes.tipoparticipacion", "pk": 3, "fields": {"nombre": "Apoyo"}},
+  {"model": "expedientes.tipoparticipacion", "pk": 4, "fields": {"nombre": "Registro"}},
+
+  {"model": "expedientes.tipomovimiento", "pk": 1, "fields": {"nombre": "Registro de queja"}},
+  {"model": "expedientes.tipomovimiento", "pk": 2, "fields": {"nombre": "Creación de expediente"}},
+  {"model": "expedientes.tipomovimiento", "pk": 3, "fields": {"nombre": "Cambio de estado"}},
+  {"model": "expedientes.tipomovimiento", "pk": 4, "fields": {"nombre": "Asignación de usuario"}},
+  {"model": "expedientes.tipomovimiento", "pk": 5, "fields": {"nombre": "Registro de documento"}},
+  {"model": "expedientes.tipomovimiento", "pk": 6, "fields": {"nombre": "Conclusión de expediente"}},
+
+  {"model": "expedientes.tipoacceso", "pk": 1, "fields": {"nombre": "Consulta"}},
+  {"model": "expedientes.tipoacceso", "pk": 2, "fields": {"nombre": "Edición"}},
+  {"model": "expedientes.tipoacceso", "pk": 3, "fields": {"nombre": "Descarga de documento"}}
+]
