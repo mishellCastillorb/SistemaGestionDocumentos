@@ -1,7 +1,9 @@
 from django.urls import path
 from .views import (
+    ListaAreasView,
     ListaExpedientesView,
     CrearQuejaView,
+    ListaTiposRegistroView,
     PerfilUsuarioView,
     CambiarPasswordView,
     ListaQuejasView,
@@ -10,7 +12,8 @@ from .views import (
     AsignarResponsableView,
     ConcluirExpedienteView,
     CambiarEstadoExpedienteView, CrearDocumentoView, ListaDocumentosView, DetalleDocumentoView,
-    DocumentosPorExpedienteView, MovimientosPorExpedienteView, RegistrarObservacionView, DetalleMovimientoView
+    DocumentosPorExpedienteView, MovimientosPorExpedienteView, RegistrarObservacionView, DetalleMovimientoView,
+    SiguienteFolioView
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -37,4 +40,7 @@ urlpatterns = [
     path('movimientos/<int:pk>/', DetalleMovimientoView.as_view(), name='detalle_movimiento'),
     path('movimientos/observacion/', RegistrarObservacionView.as_view(), name='registrar_observacion'),
 
+    path('catalogos/tipos-registro/', ListaTiposRegistroView.as_view()),
+    path('catalogos/areas/', ListaAreasView.as_view()),
+    path('quejas/siguiente-folio/', SiguienteFolioView.as_view()),
 ]

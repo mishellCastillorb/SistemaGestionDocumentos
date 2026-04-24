@@ -96,6 +96,18 @@ class QuejaDenuncia(models.Model):
 
     def __str__(self):
         return self.folio
+    
+    def save(self, *args, **kwargs):
+        if not self.folio:
+            ultimo = QuejaDenuncia.objects.order_by('-id').first()
+            if ultimo:
+                nuevo_folio = int(ultimo.folio) + 1
+            else:
+                nuevo_folio = 1
+
+            self.folio = str(nuevo_folio)
+
+        super().save(*args, **kwargs)
 
 
 # EXPEDIENTES

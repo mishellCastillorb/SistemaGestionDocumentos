@@ -1,6 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from backend.expedientes.models import TipoRegistro, Area
+from backend.expedientes.models import QuejaDenuncia
+
 from rest_framework import status
 from backend.expedientes.models import (
     Expediente, QuejaDenuncia, EstadoExpediente, ExpedienteUsuario, Usuario,
@@ -23,6 +26,35 @@ from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
 from django.db import transaction
 
+class ListaTiposRegistroView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        tipos = TipoRegistro.objects.all()
+        data = [{"id": t.id, "nombre": t.nombre} for t in tipos]
+        return Response(data)
+
+class ListaAreasView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        areas = Area.objects.all()
+        data = [{"id": a.id, "nombre": a.nombre} for a in areas]
+        return Response(data)
+    
+
+class SiguienteFolioView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        ultimo = QuejaDenuncia.objects.order_by('-id').first()
+        if ultimo:
+            siguiente = int(ultimo.folio) + 1
+        else:
+            siguiente = 1
+
+        return Response({"folio": str(siguiente)})
+    
 
 class ListaExpedientesView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
@@ -32,8 +64,9 @@ class ListaExpedientesView(APIView):
         serializer = ExpedienteSerializer(expedientes, many=True)
         return Response(serializer.data)
 
-
+from rest_framework_simplejwt.authentication import JWTAuthentication
 class CrearQuejaView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, EsCapturistaOAdministrador]
 
     def post(self, request):

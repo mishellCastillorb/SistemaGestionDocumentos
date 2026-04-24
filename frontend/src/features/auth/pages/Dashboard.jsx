@@ -33,9 +33,11 @@ function Dashboard() {
   return (
     <div>
       <div className="mb-4">
-        <h2 className="fw-bold">Dashboard</h2>
-        <p className="text-muted mb-0">
-          Panel principal del sistema
+        <h2 className="fw-bold text-primary">
+          Bienvenido al sistema
+        </h2>
+        <p className="text-muted">
+          Panel principal de gestión
         </p>
       </div>
 
