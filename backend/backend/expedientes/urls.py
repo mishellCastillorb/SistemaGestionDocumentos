@@ -4,13 +4,23 @@ from .views import (
     CrearQuejaView,
     PerfilUsuarioView,
     CambiarPasswordView,
+    PasswordResetRequestView,
+    PasswordResetRequestListView, 
+    ListaUsuariosView,
+    AdministradorPasswordTemporalView,
     ListaQuejasView,
     DetalleQuejaView,
     DetalleExpedienteView,
     AsignarResponsableView,
     ConcluirExpedienteView,
-    CambiarEstadoExpedienteView, CrearDocumentoView, ListaDocumentosView, DetalleDocumentoView,
-    DocumentosPorExpedienteView, MovimientosPorExpedienteView, RegistrarObservacionView, DetalleMovimientoView
+    CambiarEstadoExpedienteView,
+    CrearDocumentoView,
+    ListaDocumentosView,
+    DetalleDocumentoView,
+    DocumentosPorExpedienteView,
+    MovimientosPorExpedienteView,
+    RegistrarObservacionView,
+    DetalleMovimientoView
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -36,5 +46,8 @@ urlpatterns = [
     path('expedientes/<int:expediente_id>/movimientos/', MovimientosPorExpedienteView.as_view(), name='movimientos_por_expediente'),
     path('movimientos/<int:pk>/', DetalleMovimientoView.as_view(), name='detalle_movimiento'),
     path('movimientos/observacion/', RegistrarObservacionView.as_view(), name='registrar_observacion'),
-
+    path('usuarios/', ListaUsuariosView.as_view(), name='lista_usuarios'),
+    path('usuarios/temporal/', AdministradorPasswordTemporalView.as_view(), name='password_temporal'),
+    path('password-reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset-requests/', PasswordResetRequestListView.as_view(), name='lista_password_reset_requests'),
 ]

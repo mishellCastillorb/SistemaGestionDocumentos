@@ -17,6 +17,7 @@ function Sidebar() {
     { label: "Dashboard", path: "/dashboard", roles: ["administrador", "capturista", "analista", "consulta"] },
     { label: "Quejas", path: "/quejas", roles: ["administrador", "capturista", "analista", "consulta"] },
     { label: "Expedientes", path: "/expedientes", roles: ["administrador", "capturista", "analista", "consulta"] },
+    { label: "Contraseñas temporales", path: "/admin/usuarios-temporales", roles: ["administrador"] },
     { label: "Perfil", path: "/perfil", roles: ["administrador", "capturista", "analista", "consulta"] },
   ];
 

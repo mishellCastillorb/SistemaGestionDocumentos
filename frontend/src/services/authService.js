@@ -25,6 +25,29 @@ const authService = {
     return response.data;
   },
 
+  async resetPasswordRequest(username) {
+    const response = await api.post("password-reset-request/", { username });
+    return response.data;
+  },
+
+  async obtenerUsuarios() {
+    const response = await api.get("usuarios/");
+    return response.data;
+  },
+
+  async obtenerSolicitudesReset() {
+    const response = await api.get("password-reset-requests/");
+    return response.data;
+  },
+
+  async asignarPasswordTemporal(usuario_id, password_temporal) {
+    const response = await api.post("usuarios/temporal/", {
+      usuario_id,
+      password_temporal,
+    });
+    return response.data;
+  },
+
   logout() {
     localStorage.removeItem("access");
     localStorage.removeItem("refresh");

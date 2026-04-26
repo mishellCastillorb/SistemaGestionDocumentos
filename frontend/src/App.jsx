@@ -3,6 +3,7 @@ import Login from "./features/auth/pages/Login";
 import Dashboard from "./features/auth/pages/Dashboard";
 import Perfil from "./features/auth/pages/Perfil";
 import CambiarPassword from "./features/auth/pages/CambiarPassword";
+import AdminPasswordTemporal from "./features/auth/pages/AdminPasswordTemporal";
 import ListaQuejas from "./features/quejas/pages/ListaQuejas";
 import CrearQueja from "./features/quejas/pages/CrearQueja";
 import DetalleQueja from "./features/quejas/pages/DetalleQueja";
@@ -28,6 +29,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/cambiar-password" element={<CambiarPassword />} />
+          <Route path="/admin/usuarios-temporales" element={<AdminPasswordTemporal />} />
           <Route path="/quejas" element={<ListaQuejas />} />
           <Route path="/quejas/nueva" element={<CrearQueja />} />
           <Route path="/quejas/:id" element={<DetalleQueja />} />

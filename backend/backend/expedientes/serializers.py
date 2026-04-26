@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from backend.expedientes.models import QuejaDenuncia, Expediente, Documento, MovimientoExpediente
+from backend.expedientes.models import QuejaDenuncia, Expediente, Documento, MovimientoExpediente, PasswordResetRequest
 from django.contrib.auth import authenticate
 from backend.expedientes.models import Usuario
 
@@ -71,6 +71,32 @@ class CambiarPasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError("La contraseña actual es incorrecta.")
 
         return data
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    username = serializers.CharField()
+
+    def validate(self, data):
+        try:
+            Usuario.objects.get(username=data['username'])
+        except Usuario.DoesNotExist:
+            raise serializers.ValidationError("Usuario no encontrado.")
+        return data
+
+class AdministradorPasswordTemporalSerializer(serializers.Serializer):
+    usuario_id = serializers.IntegerField()
+    password_temporal = serializers.CharField(write_only=True, min_length=6)
+
+    def validate_password_temporal(self, value):
+        if len(value.strip()) < 6:
+            raise serializers.ValidationError("La contraseña temporal debe tener al menos 6 caracteres.")
+        return value
+
+class PasswordResetRequestModelSerializer(serializers.ModelSerializer):
+    usuario = UsuarioSerializer(read_only=True)
+
+    class Meta:
+        model = PasswordResetRequest
+        fields = ['id', 'usuario', 'creado_en', 'atendido']
 
 class AsignarResponsableSerializer(serializers.Serializer):
     usuario_id = serializers.IntegerField()

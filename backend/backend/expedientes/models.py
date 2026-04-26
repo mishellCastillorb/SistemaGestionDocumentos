@@ -78,6 +78,19 @@ class Usuario(AbstractUser):
         return self.username
 
 
+class PasswordResetRequest(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    atendido = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-creado_en']
+
+    def __str__(self):
+        estado = 'atendido' if self.atendido else 'pendiente'
+        return f"Solicitud de restablecimiento: {self.usuario.username} ({estado})"
+
+
 #QUEJAS
 class QuejaDenuncia(models.Model):
     folio = models.CharField(max_length=30, unique=True)

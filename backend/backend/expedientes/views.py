@@ -1,16 +1,22 @@
+from django.conf import settings
+from django.core.mail import send_mail
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from backend.expedientes.models import (
     Expediente, QuejaDenuncia, EstadoExpediente, ExpedienteUsuario, Usuario,
-    TipoParticipacion, MotivoConclusion, Documento, MovimientoExpediente, TipoMovimiento
+    TipoParticipacion, MotivoConclusion, Documento, MovimientoExpediente, TipoMovimiento,
+    PasswordResetRequest
 )
 from .serializers import (
     ExpedienteSerializer,
     QuejaDenunciaSerializer,
     UsuarioSerializer,
     CambiarPasswordSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetRequestModelSerializer,
+    AdministradorPasswordTemporalSerializer,
     AsignarResponsableSerializer,
     ConcluirExpedienteSerializer,
     CambiarEstadoExpedienteSerializer,
@@ -18,7 +24,7 @@ from .serializers import (
     MovimientoExpedienteSerializer,
     RegistrarObservacionSerializer
 )
-from .permissions import EsCapturistaOAdministrador, SoloLecturaPorRol, EsAnalistaOAdministrador
+from .permissions import EsCapturistaOAdministrador, SoloLecturaPorRol, EsAnalistaOAdministrador, EsAdministrador
 from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
 from django.db import transaction
@@ -105,6 +111,87 @@ class CambiarPasswordView(APIView):
             {'mensaje': 'Contraseña actualizada correctamente.'},
             status=status.HTTP_200_OK
         )
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            usuario = Usuario.objects.get(username=serializer.validated_data['username'])
+            PasswordResetRequest.objects.create(usuario=usuario)
+        except Usuario.DoesNotExist:
+            pass
+
+        return Response(
+            {'mensaje': 'Solicitud de restablecimiento recibida. Si el usuario existe, el administrador será notificado.'},
+            status=status.HTTP_200_OK
+        )
+
+
+class PasswordResetRequestListView(APIView):
+    permission_classes = [IsAuthenticated, EsAdministrador]
+
+    def get(self, request):
+        solicitudes = PasswordResetRequest.objects.filter(atendido=False)
+        serializer = PasswordResetRequestModelSerializer(solicitudes, many=True)
+        return Response(serializer.data)
+
+
+class AdministradorPasswordTemporalView(APIView):
+    permission_classes = [IsAuthenticated, EsAdministrador]
+
+    def post(self, request):
+        serializer = AdministradorPasswordTemporalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        usuario = get_object_or_404(Usuario, id=serializer.validated_data['usuario_id'])
+        password_temporal = serializer.validated_data['password_temporal']
+        usuario.set_password(password_temporal)
+        usuario.save()
+        PasswordResetRequest.objects.filter(usuario=usuario, atendido=False).update(atendido=True)
+
+        if usuario.email:
+            subject = "Contraseña temporal asignada"
+            message = (
+                f"Hola {usuario.username},\n\n"
+                f"Tu contraseña temporal ha sido asignada por el administrador.\n"
+                f"Utiliza la siguiente contraseña para ingresar: {password_temporal}\n\n"
+                "Por favor, cambia tu contraseña después de iniciar sesión."
+            )
+            from_email = settings.DEFAULT_FROM_EMAIL
+            recipient_list = [usuario.email]
+
+            try:
+                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+            except Exception as error:
+                return Response(
+                    {
+                        'mensaje': 'Contraseña temporal asignada, pero no se pudo enviar el correo.',
+                        'error': str(error)
+                    },
+                    status=status.HTTP_200_OK
+                )
+
+        return Response(
+            {
+                'mensaje': 'Contraseña temporal asignada correctamente y enviada por correo electrónico.',
+                'usuario': UsuarioSerializer(usuario).data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class ListaUsuariosView(APIView):
+    permission_classes = [IsAuthenticated, EsAdministrador]
+
+    def get(self, request):
+        usuarios = Usuario.objects.all()
+        serializer = UsuarioSerializer(usuarios, many=True)
+        return Response(serializer.data)
 
 
 class ListaQuejasView(APIView):

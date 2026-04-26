@@ -1,15 +1,35 @@
+import { useEffect, useState } from "react";
 import authService from "../../../services/authService";
 import { Link } from "react-router-dom";
 
 function Dashboard() {
   const perfil = authService.getPerfilGuardado();
   const rol = perfil?.rol?.toLowerCase();
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState(0);
+
+  useEffect(() => {
+    if (rol !== "administrador") {
+      return;
+    }
+
+    const fetchSolicitudes = async () => {
+      try {
+        const data = await authService.obtenerSolicitudesReset();
+        setSolicitudesPendientes(data.length);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchSolicitudes();
+  }, [rol]);
 
   const accesosRapidos = {
     administrador: [
       { label: "Registrar nueva queja", path: "/quejas/nueva" },
       { label: "Consultar quejas", path: "/quejas" },
       { label: "Consultar expedientes", path: "/expedientes" },
+      { label: "Contraseñas temporales", path: "/admin/usuarios-temporales" },
     ],
     capturista: [
       { label: "Registrar nueva queja", path: "/quejas/nueva" },
@@ -37,6 +57,11 @@ function Dashboard() {
         <p className="text-muted mb-0">
           Panel principal del sistema
         </p>
+        {solicitudesPendientes > 0 && (
+          <div className="alert alert-warning mt-3">
+            Hay <strong>{solicitudesPendientes}</strong> solicitudes de recuperación de contraseña pendientes.
+          </div>
+        )}
       </div>
 
       <div className="row g-4 mb-4">
