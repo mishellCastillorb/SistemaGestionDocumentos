@@ -15,6 +15,21 @@ const quejaService = {
     const response = await api.get(`quejas/${id}/`);
     return response.data;
   },
+
+  async obtenerTiposRegistro() {
+    const response = await api.get("catalogos/tipos-registro/");
+    return response.data;
+  },
+
+  async obtenerAreas() {
+    const response = await api.get("catalogos/areas/");
+    return response.data;
+  },
+
+  async obtenerSiguienteFolio() {
+    const response = await api.get("quejas/siguiente-folio/");
+    return response.data;
+  }
 };
 
 export default quejaService;

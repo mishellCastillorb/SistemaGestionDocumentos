@@ -1,0 +1,20 @@
+# ===== BACKEND (Python/Django) =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+
+# Entornos virtuales
+venv/
+env/
+
+# ===== FRONTEND (Node/React) =====
+node_modules/
+dist/
+build/
+
+# ===== GENERALES =====
+.env
+.DS_Store
+Thumbs.db

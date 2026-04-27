@@ -9,9 +9,11 @@ function Navbar() {
       style={{ minHeight: "72px" }}
     >
       <div>
-        <h5 className="mb-0 fw-bold">Sistema de Gestión de Quejas y Denuncias</h5>
+        <h5 className="mb-0 fw-bold text-primary">
+          Sistema de Gestión de Quejas
+        </h5>
         <small className="text-muted">
-          Bienvenida, {perfil?.username || "usuario"}
+          Bienvenid@, <strong>{perfil?.username || "usuario"}</strong>
         </small>
       </div>
 

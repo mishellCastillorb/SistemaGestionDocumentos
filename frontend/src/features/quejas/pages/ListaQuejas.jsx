@@ -34,8 +34,8 @@ function ListaQuejas() {
       {error && <p className="text-danger">{error}</p>}
 
       <div className="card shadow p-3">
-        <table className="table table-striped">
-          <thead>
+        <table className="table table-hover align-middle">
+          <thead className="table-light">
             <tr>
               <th>Folio</th>
               <th>Asunto</th>

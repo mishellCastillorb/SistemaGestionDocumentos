@@ -82,9 +82,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'gestion_quejas_denuncias',
         'USER': 'root',
-        'PASSWORD': 'mishellCast55',
+        'PASSWORD': 'Jmysql$24',
         'HOST': 'localhost',
-        'PORT': '3307',
+        'PORT': '3306',
     }
 }
 
