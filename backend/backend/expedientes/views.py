@@ -47,7 +47,7 @@ class ListaAreasView(APIView):
         areas = Area.objects.all()
         data = [{"id": a.id, "nombre": a.nombre} for a in areas]
         return Response(data)
-    
+
 
 class SiguienteFolioView(APIView):
     permission_classes = [IsAuthenticated]
@@ -60,7 +60,7 @@ class SiguienteFolioView(APIView):
             siguiente = 1
 
         return Response({"folio": str(siguiente)})
-    
+
 
 class ListaExpedientesView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
@@ -425,8 +425,7 @@ class DetalleDocumentoView(APIView):
 
     def get(self, request, pk):
         documento = get_object_or_404(Documento, pk=pk)
-#        serializer = DocumentoSerializer(documento)
-        serializer = DocumentoSerializer(documento, many=True, context={'request': request})
+        serializer = DocumentoSerializer(documento, context={'request': request})
         return Response(serializer.data)
 
 

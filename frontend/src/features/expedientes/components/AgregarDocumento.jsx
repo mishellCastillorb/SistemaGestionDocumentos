@@ -99,18 +99,36 @@ function AgregarDocumento({ expedienteId, onDocumentoGuardado }) {
           />
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Archivo</label>
-          <input
-            type="file"
-            className="form-control"
-            onChange={(e) => setArchivo(e.target.files[0])}
-          />
-        </div>
+          <div className="mb-3">
+              <label className="form-label">Archivo</label>
+              <input
+                  type="file"
+                  className="form-control"
+                  accept="application/pdf,.pdf"
+                  onChange={(e) => {
+                      const file = e.target.files[0];
 
-        <button type="submit" className="btn btn-primary" disabled={cargando}>
-          {cargando ? "Guardando..." : "Guardar documento"}
-        </button>
+                      if (!file) {
+                          setArchivo(null);
+                          return;
+                      }
+
+                      if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+                          setError("Solo se permiten archivos PDF.");
+                          setArchivo(null);
+                          e.target.value = "";
+                          return;
+                      }
+
+                      setError("");
+                      setArchivo(file);
+                  }}
+              />
+          </div>
+
+          <button type="submit" className="btn btn-primary" disabled={cargando}>
+              {cargando ? "Guardando..." : "Guardar documento"}
+          </button>
       </form>
     </div>
   );

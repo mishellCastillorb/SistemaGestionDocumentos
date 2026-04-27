@@ -124,6 +124,16 @@ class DocumentoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['usuario_registra']
 
+    def validate_archivo(self, value):
+        if value:
+            if not value.name.lower().endswith('.pdf'):
+                raise serializers.ValidationError("Solo se permiten archivos PDF.")
+
+            if value.content_type != 'application/pdf':
+                raise serializers.ValidationError("El archivo debe ser un PDF válido.")
+
+        return value
+
     def get_archivo_url(self, obj):
         request = self.context.get('request')
         if obj.archivo and request:
@@ -131,6 +141,7 @@ class DocumentoSerializer(serializers.ModelSerializer):
         elif obj.archivo:
             return obj.archivo.url
         return None
+
 
 class RegistrarObservacionSerializer(serializers.Serializer):
     expediente_id = serializers.IntegerField()

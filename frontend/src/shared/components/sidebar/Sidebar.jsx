@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import authService from "../../../services/authService";
 
-function Sidebar() {
+function Sidebar({ abierto, setAbierto }) {
   const perfil = authService.getPerfilGuardado();
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,7 +18,6 @@ function Sidebar() {
     { label: "Quejas", path: "/quejas", roles: ["administrador", "capturista", "analista", "consulta"] },
     { label: "Expedientes", path: "/expedientes", roles: ["administrador", "capturista", "analista", "consulta"] },
     { label: "Contraseñas temporales", path: "/admin/usuarios-temporales", roles: ["administrador"] },
-    { label: "Perfil", path: "/perfil", roles: ["administrador", "capturista", "analista", "consulta"] },
   ];
 
   const itemsFiltrados = menuItems.filter((item) => item.roles.includes(rol));
@@ -27,20 +26,27 @@ function Sidebar() {
     <div
       className="d-flex flex-column text-white p-3"
       style={{
-        width: "260px",
+        width: abierto ? "260px" : "75px",
         minHeight: "100vh",
         background: "#183b56",
+        transition: "width 0.3s ease",
+        overflow: "hidden",
       }}
     >
-      <div className="mb-4">
-        <h4 className="fw-bold">SGQD</h4>
-        <small className="text-light">Sistema de Gestión</small>
-      </div>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        {abierto && (
+          <div>
+            <h4 className="fw-bold mb-0">SGQD</h4>
+            <small className="text-light">Sistema de Gestión</small>
+          </div>
+        )}
 
-      <div className="bg-white text-dark rounded p-3 mb-4 shadow-sm">
-        <p className="mb-1 fw-bold">{perfil?.username || "Usuario"}</p>
-        <p className="mb-1 small">Rol: {perfil?.rol || "Sin rol"}</p>
-        <p className="mb-0 small">Área: {perfil?.area || "Sin área"}</p>
+        <button
+          className="btn btn-sm btn-outline-light"
+          onClick={() => setAbierto(!abierto)}
+        >
+          ☰
+        </button>
       </div>
 
       <nav className="nav flex-column gap-2">
@@ -54,7 +60,7 @@ function Sidebar() {
               className="text-decoration-none"
             >
               <div
-                className="px-3 py-2 rounded"
+                className="px-3 py-2 rounded text-nowrap"
                 style={{
                   backgroundColor: activo ? "#ffffff" : "transparent",
                   color: activo ? "#183b56" : "#ffffff",
@@ -62,7 +68,7 @@ function Sidebar() {
                   transition: "0.2s",
                 }}
               >
-                {item.label}
+                {abierto ? item.label : item.label.charAt(0)}
               </div>
             </Link>
           );
@@ -71,7 +77,7 @@ function Sidebar() {
 
       <div className="mt-auto pt-4">
         <button className="btn btn-outline-light w-100" onClick={cerrarSesion}>
-          Cerrar sesión
+          {abierto ? "Cerrar sesión" : "⎋"}
         </button>
       </div>
     </div>
