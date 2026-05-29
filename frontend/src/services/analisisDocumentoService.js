@@ -31,6 +31,12 @@ const analisisDocumentoService = {
 
     return response.data;
   },
+
+  async reanalizarDocumento(documentoId) {
+    const response = await api.post(`documentos/${documentoId}/reanalizar/`);
+
+    return response.data;
+  },
 };
 
 export default analisisDocumentoService;

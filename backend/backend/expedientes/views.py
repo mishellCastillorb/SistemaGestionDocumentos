@@ -553,17 +553,17 @@ class CrearDocumentoView(APIView):
                     AnalisisDocumento.objects.create(
                         documento=documento,
                         prioridad="No determinada",
-                        categoria="No determinada",
+                        categoria="Revisión manual requerida",
                         palabras_detectadas="",
-                        requiere_atencion=False,
+                        requiere_atencion=True,
                         justificacion=(
                             "No fue posible analizar automáticamente el documento. "
-                            "El usuario deberá revisarlo manualmente."
+                            "Se recomienda revisión manual por parte del analista."
                         ),
                         texto_extraido="",
                         confianza=0.00,
                         metodo_analisis=AnalisisDocumento.METODO_REGLAS,
-                        version_analizador="1.1",
+                        version_analizador="1.3",
                         error_analisis=str(error),
                         estado_revision=AnalisisDocumento.ESTADO_ERROR,
                     )
@@ -591,6 +591,7 @@ class CrearDocumentoView(APIView):
             )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class ListaDocumentosView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
@@ -709,7 +710,8 @@ class EliminarDocumentoView(generics.DestroyAPIView):
             {"mensaje": "Documento eliminado correctamente."},
             status=status.HTTP_200_OK,
         )
-        
+
+
 class AceptarAnalisisDocumentoView(APIView):
     permission_classes = [IsAuthenticated, EsAnalistaOAdministrador]
 
@@ -807,3 +809,114 @@ class CorregirAnalisisDocumentoView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ReanalizarDocumentoView(APIView):
+    permission_classes = [IsAuthenticated, EsAnalistaOAdministrador]
+
+    def post(self, request, documento_id):
+        documento = get_object_or_404(Documento, id=documento_id)
+
+        expediente = documento.expediente
+
+        if expediente.estado and expediente.estado.nombre.lower() == "concluido":
+            return Response(
+                {
+                    "error": (
+                        "No se puede reanalizar un documento de un expediente concluido."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not documento.archivo:
+            return Response(
+                {"error": "El documento no tiene un archivo asociado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        analisis_existente = getattr(documento, "analisis", None)
+
+        if analisis_existente and analisis_existente.estado_revision in [
+            AnalisisDocumento.ESTADO_ACEPTADO,
+            AnalisisDocumento.ESTADO_RECHAZADO,
+            AnalisisDocumento.ESTADO_CORREGIDO,
+        ]:
+            return Response(
+                {
+                    "error": (
+                        "No se puede reanalizar un documento cuya clasificación "
+                        "ya fue revisada por un usuario. Si es necesario cambiarla, "
+                        "usa la corrección o clasificación manual."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            texto = extraer_texto_pdf(documento.archivo.path)
+            resultado = analizar_texto(texto)
+
+            analisis, _ = AnalisisDocumento.objects.update_or_create(
+                documento=documento,
+                defaults={
+                    "prioridad": resultado["prioridad"],
+                    "categoria": resultado["categoria"],
+                    "palabras_detectadas": resultado["palabras_detectadas"],
+                    "requiere_atencion": resultado["requiere_atencion"],
+                    "justificacion": resultado["justificacion"],
+                    "texto_extraido": resultado["texto_extraido"],
+                    "confianza": resultado["confianza"],
+                    "metodo_analisis": resultado["metodo_analisis"],
+                    "version_analizador": resultado["version_analizador"],
+                    "error_analisis": resultado["error_analisis"],
+                    "estado_revision": AnalisisDocumento.ESTADO_PENDIENTE_REVISION,
+                    "categoria_final": "",
+                    "prioridad_final": "",
+                    "comentario_revisor": "",
+                    "revisado_por": None,
+                    "revisado_en": None,
+                },
+            )
+
+            return Response(
+                {
+                    "mensaje": "Documento reanalizado correctamente.",
+                    "analisis": AnalisisDocumentoSerializer(analisis).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as error:
+            analisis, _ = AnalisisDocumento.objects.update_or_create(
+                documento=documento,
+                defaults={
+                    "prioridad": "No determinada",
+                    "categoria": "Revisión manual requerida",
+                    "palabras_detectadas": "",
+                    "requiere_atencion": True,
+                    "justificacion": (
+                        "No fue posible reanalizar automáticamente el documento. "
+                        "Se recomienda revisión manual por parte del analista."
+                    ),
+                    "texto_extraido": "",
+                    "confianza": 0.00,
+                    "metodo_analisis": AnalisisDocumento.METODO_REGLAS,
+                    "version_analizador": "1.3",
+                    "error_analisis": str(error),
+                    "estado_revision": AnalisisDocumento.ESTADO_ERROR,
+                    "categoria_final": "",
+                    "prioridad_final": "",
+                    "comentario_revisor": "",
+                    "revisado_por": None,
+                    "revisado_en": None,
+                },
+            )
+
+            return Response(
+                {
+                    "mensaje": "El documento se conservó, pero ocurrió un error al reanalizar.",
+                    "analisis": AnalisisDocumentoSerializer(analisis).data,
+                },
+                status=status.HTTP_200_OK,
+            )

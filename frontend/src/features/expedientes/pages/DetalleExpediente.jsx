@@ -11,6 +11,7 @@ import {
   FaExclamationTriangle,
   FaFilePdf,
   FaShieldAlt,
+  FaSyncAlt,
   FaTag,
   FaTimesCircle,
   FaUser,
@@ -104,6 +105,7 @@ function DetalleExpediente() {
   const [concluyendo, setConcluyendo] = useState(false);
 
   const [analisisProcesandoId, setAnalisisProcesandoId] = useState(null);
+  const [documentoReanalizandoId, setDocumentoReanalizandoId] = useState(null);
 
   const [mostrarModalRevision, setMostrarModalRevision] = useState(false);
   const [tipoRevision, setTipoRevision] = useState("");
@@ -123,6 +125,7 @@ function DetalleExpediente() {
   const puedeRevisarAnalisis = rol === "administrador" || rol === "analista";
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
     cargarDatos();
   }, [id]);
 
@@ -255,7 +258,7 @@ function DetalleExpediente() {
       setCategoriaFinal("");
       setPrioridadFinal("Media");
       setComentarioCorreccion(
-        "Clasificación asignada manualmente después de rechazar la sugerencia automática."
+        "Clasificación asignada manualmente por el usuario revisor."
       );
     } else {
       setCategoriaFinal(analisis.categoria || "");
@@ -318,6 +321,31 @@ function DetalleExpediente() {
       );
     } finally {
       setAnalisisProcesandoId(null);
+    }
+  };
+
+  const reanalizarDocumento = async (doc) => {
+    const confirmar = window.confirm(
+      "¿Deseas reanalizar este documento? El análisis automático se volverá a generar y quedará pendiente de revisión."
+    );
+
+    if (!confirmar) return;
+
+    try {
+      setDocumentoReanalizandoId(doc.id);
+
+      await analisisDocumentoService.reanalizarDocumento(doc.id);
+
+      alert("Documento reanalizado correctamente.");
+      await cargarDatos();
+    } catch (error) {
+      console.error(error);
+      alert(
+        error.response?.data?.error ||
+          "No se pudo reanalizar el documento."
+      );
+    } finally {
+      setDocumentoReanalizandoId(null);
     }
   };
 
@@ -461,17 +489,32 @@ function DetalleExpediente() {
               const analisisRechazado =
                 doc.analisis?.estado_revision === "rechazado";
 
+              const analisisConError =
+                doc.analisis?.estado_revision === "error";
+
+              const analisisRequiereRevisionManual =
+                doc.analisis?.estado_revision === "pendiente_revision" &&
+                doc.analisis?.categoria === "Revisión manual requerida";
+
               const mostrarAccionesAnalisis =
                 puedeRevisarAnalisis &&
                 !estaConcluido &&
                 doc.analisis &&
-                analisisPendiente;
+                analisisPendiente &&
+                !analisisRequiereRevisionManual;
 
               const mostrarAsignacionManual =
                 puedeRevisarAnalisis &&
                 !estaConcluido &&
                 doc.analisis &&
-                analisisRechazado;
+                (analisisRechazado || analisisRequiereRevisionManual);
+
+              const mostrarBotonReanalizar =
+                puedeRevisarAnalisis &&
+                !estaConcluido &&
+                doc.analisis &&
+                (analisisPendiente || analisisConError) &&
+                !analisisRequiereRevisionManual;
 
               return (
                 <div key={doc.id} className="col-md-6">
@@ -561,12 +604,23 @@ function DetalleExpediente() {
                           </div>
 
                           {doc.analisis.estado_revision ===
-                            "pendiente_revision" && (
-                            <div className="alert alert-warning py-2 px-3 small mb-3">
+                            "pendiente_revision" &&
+                            !analisisRequiereRevisionManual && (
+                              <div className="alert alert-warning py-2 px-3 small mb-3">
+                                <FaExclamationTriangle className="me-2" />
+                                La clasificación debe ser revisada por un
+                                usuario analista o administrador antes de
+                                considerarse válida.
+                              </div>
+                            )}
+
+                          {analisisRequiereRevisionManual && (
+                            <div className="alert alert-info py-2 px-3 small mb-3">
                               <FaExclamationTriangle className="me-2" />
-                              La clasificación debe ser revisada por un usuario
-                              analista o administrador antes de considerarse
-                              válida.
+                              No se pudo obtener una clasificación automática
+                              confiable. El documento puede estar escaneado,
+                              vacío o contener muy poco texto seleccionable. Se
+                              recomienda asignar una clasificación manual.
                             </div>
                           )}
 
@@ -590,6 +644,14 @@ function DetalleExpediente() {
                               <FaTimesCircle className="me-2" />
                               La sugerencia fue rechazada por un usuario
                               revisor.
+                            </div>
+                          )}
+
+                          {doc.analisis.estado_revision === "error" && (
+                            <div className="alert alert-danger py-2 px-3 small mb-3">
+                              <FaExclamationTriangle className="me-2" />
+                              Ocurrió un error durante el análisis automático.
+                              Puedes intentar reanalizar el documento.
                             </div>
                           )}
 
@@ -644,6 +706,24 @@ function DetalleExpediente() {
                             </div>
                           )}
 
+                          {analisisRequiereRevisionManual &&
+                            mostrarAsignacionManual && (
+                              <div className="mt-3">
+                                <button
+                                  className="btn btn-outline-primary btn-sm rounded-pill"
+                                  disabled={
+                                    analisisProcesandoId === doc.analisis.id
+                                  }
+                                  onClick={() =>
+                                    abrirModalCorreccion(doc.analisis, "manual")
+                                  }
+                                >
+                                  <FaEdit className="me-1" />
+                                  Asignar clasificación manual
+                                </button>
+                              </div>
+                            )}
+
                           {doc.analisis.estado_revision !==
                             "pendiente_revision" && (
                             <div className="border rounded-3 p-3 mt-3 bg-white">
@@ -681,68 +761,93 @@ function DetalleExpediente() {
                                 </p>
                               )}
 
-                              {mostrarAsignacionManual && (
-                                <div className="mt-3">
+                              {mostrarAsignacionManual &&
+                                !analisisRequiereRevisionManual && (
+                                  <div className="mt-3">
+                                    <button
+                                      className="btn btn-outline-primary btn-sm rounded-pill"
+                                      disabled={
+                                        analisisProcesandoId === doc.analisis.id
+                                      }
+                                      onClick={() =>
+                                        abrirModalCorreccion(
+                                          doc.analisis,
+                                          "manual"
+                                        )
+                                      }
+                                    >
+                                      <FaEdit className="me-1" />
+                                      Asignar clasificación manual
+                                    </button>
+                                  </div>
+                                )}
+                            </div>
+                          )}
+
+                          {(mostrarAccionesAnalisis ||
+                            mostrarBotonReanalizar) && (
+                            <div className="d-flex flex-wrap gap-2 mt-3">
+                              {mostrarAccionesAnalisis && (
+                                <>
+                                  <button
+                                    className="btn btn-success btn-sm rounded-pill"
+                                    disabled={
+                                      analisisProcesandoId === doc.analisis.id
+                                    }
+                                    onClick={() =>
+                                      abrirModalRevision(
+                                        "aceptar",
+                                        doc.analisis
+                                      )
+                                    }
+                                  >
+                                    <FaCheckCircle className="me-1" />
+                                    Aceptar sugerencia
+                                  </button>
+
+                                  <button
+                                    className="btn btn-outline-danger btn-sm rounded-pill"
+                                    disabled={
+                                      analisisProcesandoId === doc.analisis.id
+                                    }
+                                    onClick={() =>
+                                      abrirModalRevision(
+                                        "rechazar",
+                                        doc.analisis
+                                      )
+                                    }
+                                  >
+                                    <FaTimesCircle className="me-1" />
+                                    Rechazar sugerencia
+                                  </button>
+
                                   <button
                                     className="btn btn-outline-primary btn-sm rounded-pill"
                                     disabled={
                                       analisisProcesandoId === doc.analisis.id
                                     }
                                     onClick={() =>
-                                      abrirModalCorreccion(
-                                        doc.analisis,
-                                        "manual"
-                                      )
+                                      abrirModalCorreccion(doc.analisis)
                                     }
                                   >
                                     <FaEdit className="me-1" />
-                                    Asignar clasificación manual
+                                    Corregir
                                   </button>
-                                </div>
+                                </>
                               )}
-                            </div>
-                          )}
 
-                          {mostrarAccionesAnalisis && (
-                            <div className="d-flex flex-wrap gap-2 mt-3">
-                              <button
-                                className="btn btn-success btn-sm rounded-pill"
-                                disabled={
-                                  analisisProcesandoId === doc.analisis.id
-                                }
-                                onClick={() =>
-                                  abrirModalRevision("aceptar", doc.analisis)
-                                }
-                              >
-                                <FaCheckCircle className="me-1" />
-                                Aceptar sugerencia
-                              </button>
-
-                              <button
-                                className="btn btn-outline-danger btn-sm rounded-pill"
-                                disabled={
-                                  analisisProcesandoId === doc.analisis.id
-                                }
-                                onClick={() =>
-                                  abrirModalRevision("rechazar", doc.analisis)
-                                }
-                              >
-                                <FaTimesCircle className="me-1" />
-                                Rechazar sugerencia
-                              </button>
-
-                              <button
-                                className="btn btn-outline-primary btn-sm rounded-pill"
-                                disabled={
-                                  analisisProcesandoId === doc.analisis.id
-                                }
-                                onClick={() =>
-                                  abrirModalCorreccion(doc.analisis)
-                                }
-                              >
-                                <FaEdit className="me-1" />
-                                Corregir
-                              </button>
+                              {mostrarBotonReanalizar && (
+                                <button
+                                  className="btn btn-outline-secondary btn-sm rounded-pill"
+                                  disabled={documentoReanalizandoId === doc.id}
+                                  onClick={() => reanalizarDocumento(doc)}
+                                >
+                                  <FaSyncAlt className="me-1" />
+                                  {documentoReanalizandoId === doc.id
+                                    ? "Reanalizando..."
+                                    : "Reanalizar documento"}
+                                </button>
+                              )}
                             </div>
                           )}
 
@@ -1037,7 +1142,7 @@ function DetalleExpediente() {
               <div className="modal-body">
                 <div className="alert alert-info small">
                   {modoCorreccion === "manual"
-                    ? "La sugerencia automática fue rechazada. Ahora puedes asignar una clasificación final manual para el documento."
+                    ? "El análisis automático no produjo una clasificación confiable o fue descartado. Ahora puedes asignar una clasificación final manual para el documento."
                     : "La clasificación final será registrada como decisión humana. La sugerencia automática se conservará como referencia."}
                 </div>
 

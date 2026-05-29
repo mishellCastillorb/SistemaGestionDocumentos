@@ -30,6 +30,7 @@ from .views import (
     AceptarAnalisisDocumentoView,
     RechazarAnalisisDocumentoView,
     CorregirAnalisisDocumentoView,  
+    ReanalizarDocumentoView,
 )
 from .views_catalogos import ListaTiposDocumentoView
 from .views_dashboard import DashboardResumenView
@@ -113,5 +114,10 @@ urlpatterns = [
     "analisis-documentos/<int:analisis_id>/corregir/",
     CorregirAnalisisDocumentoView.as_view(),
     name="corregir_analisis_documento",
-),
-]
+    ),
+    path(
+    "documentos/<int:documento_id>/reanalizar/",
+    ReanalizarDocumentoView.as_view(),
+    name="reanalizar_documento",
+    ),
+    ]
