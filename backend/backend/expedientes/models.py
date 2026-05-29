@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
+
 # CATALOGOS
 
 class Rol(models.Model):
@@ -68,7 +69,7 @@ class TipoAcceso(models.Model):
         return self.nombre
 
 
-#  USUARIO
+# USUARIO
 
 class Usuario(AbstractUser):
     rol = models.ForeignKey(Rol, on_delete=models.PROTECT, null=True)
@@ -84,14 +85,15 @@ class PasswordResetRequest(models.Model):
     atendido = models.BooleanField(default=False)
 
     class Meta:
-        ordering = ['-creado_en']
+        ordering = ["-creado_en"]
 
     def __str__(self):
-        estado = 'atendido' if self.atendido else 'pendiente'
+        estado = "atendido" if self.atendido else "pendiente"
         return f"Solicitud de restablecimiento: {self.usuario.username} ({estado})"
 
 
-#QUEJAS
+# QUEJAS
+
 class QuejaDenuncia(models.Model):
     folio = models.CharField(max_length=30, unique=True)
     tipo_registro = models.ForeignKey(TipoRegistro, on_delete=models.PROTECT)
@@ -112,7 +114,8 @@ class QuejaDenuncia(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.folio:
-            ultimo = QuejaDenuncia.objects.order_by('-id').first()
+            ultimo = QuejaDenuncia.objects.order_by("-id").first()
+
             if ultimo:
                 nuevo_folio = int(ultimo.folio) + 1
             else:
@@ -124,6 +127,7 @@ class QuejaDenuncia(models.Model):
 
 
 # EXPEDIENTES
+
 class Expediente(models.Model):
     numero_expediente = models.CharField(max_length=50, unique=True)
     queja = models.OneToOneField(QuejaDenuncia, on_delete=models.CASCADE)
@@ -138,7 +142,7 @@ class Expediente(models.Model):
         MotivoConclusion,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
     )
 
     observaciones_finales = models.TextField(blank=True)
@@ -148,6 +152,7 @@ class Expediente(models.Model):
 
 
 # DOCUMENTOS
+
 class Documento(models.Model):
     expediente = models.ForeignKey(Expediente, on_delete=models.CASCADE)
     tipo_documento = models.ForeignKey(TipoDocumento, on_delete=models.PROTECT)
@@ -164,6 +169,7 @@ class Documento(models.Model):
 
 
 # MOVIMIENTOS
+
 class MovimientoExpediente(models.Model):
     expediente = models.ForeignKey(Expediente, on_delete=models.CASCADE)
     tipo_movimiento = models.ForeignKey(TipoMovimiento, on_delete=models.PROTECT)
@@ -178,6 +184,7 @@ class MovimientoExpediente(models.Model):
 
 
 # RELACION USUARIOS
+
 class ExpedienteUsuario(models.Model):
     expediente = models.ForeignKey(Expediente, on_delete=models.CASCADE)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
@@ -191,6 +198,7 @@ class ExpedienteUsuario(models.Model):
 
 
 # ACCESOS
+
 class AccesoExpediente(models.Model):
     expediente = models.ForeignKey(Expediente, on_delete=models.CASCADE)
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
@@ -201,20 +209,125 @@ class AccesoExpediente(models.Model):
     def __str__(self):
         return f"{self.usuario} - {self.expediente} ({self.tipo_acceso})"
 
+
 class AnalisisDocumento(models.Model):
+    ESTADO_PENDIENTE_REVISION = "pendiente_revision"
+    ESTADO_ACEPTADO = "aceptado"
+    ESTADO_RECHAZADO = "rechazado"
+    ESTADO_CORREGIDO = "corregido"
+    ESTADO_ERROR = "error"
+
+    ESTADOS_REVISION = [
+        (ESTADO_PENDIENTE_REVISION, "Pendiente de revisión"),
+        (ESTADO_ACEPTADO, "Aceptado"),
+        (ESTADO_RECHAZADO, "Rechazado"),
+        (ESTADO_CORREGIDO, "Corregido"),
+        (ESTADO_ERROR, "Error en análisis"),
+    ]
+
+    METODO_REGLAS = "reglas_v1"
+    METODO_IA_EXTERNA = "ia_externa"
+    METODO_HIBRIDO = "hibrido"
+
+    METODOS_ANALISIS = [
+        (METODO_REGLAS, "Reglas por palabras clave"),
+        (METODO_IA_EXTERNA, "IA externa"),
+        (METODO_HIBRIDO, "Híbrido"),
+    ]
+
     documento = models.OneToOneField(
         Documento,
         on_delete=models.CASCADE,
-        related_name='analisis'
+        related_name="analisis",
     )
 
+    # Campos actuales. Se mantienen para no romper el flujo existente.
     prioridad = models.CharField(max_length=20)
     categoria = models.CharField(max_length=100)
     palabras_detectadas = models.TextField(blank=True)
 
     requiere_atencion = models.BooleanField(default=False)
 
+    # Nuevos campos para una sugerencia más profesional.
+    justificacion = models.TextField(
+        blank=True,
+        default="",
+        help_text="Explicación breve de por qué se sugirió esta clasificación.",
+    )
+
+    texto_extraido = models.TextField(
+        blank=True,
+        default="",
+        help_text="Texto extraído del PDF. En producción debe limitarse según políticas de privacidad.",
+    )
+
+    confianza = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        help_text="Confianza aproximada del análisis en porcentaje.",
+    )
+
+    metodo_analisis = models.CharField(
+        max_length=30,
+        choices=METODOS_ANALISIS,
+        default=METODO_REGLAS,
+    )
+
+    version_analizador = models.CharField(
+        max_length=20,
+        default="1.0",
+    )
+
+    error_analisis = models.TextField(
+        blank=True,
+        default="",
+        help_text="Mensaje técnico en caso de que el análisis falle.",
+    )
+
+    # Revisión humana. La IA solo sugiere; el usuario decide.
+    estado_revision = models.CharField(
+        max_length=30,
+        choices=ESTADOS_REVISION,
+        default=ESTADO_PENDIENTE_REVISION,
+    )
+
+    categoria_final = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Clasificación final definida por el usuario revisor.",
+    )
+
+    prioridad_final = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="Prioridad final definida por el usuario revisor.",
+    )
+
+    comentario_revisor = models.TextField(
+        blank=True,
+        default="",
+    )
+
+    revisado_por = models.ForeignKey(
+        Usuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="analisis_documentos_revisados",
+    )
+
+    revisado_en = models.DateTimeField(null=True, blank=True)
+
     creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-creado_en"]
+        verbose_name = "Análisis de documento"
+        verbose_name_plural = "Análisis de documentos"
 
     def __str__(self):
         return f"Análisis - {self.documento.nombre_documento}"

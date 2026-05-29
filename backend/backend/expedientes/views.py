@@ -537,10 +537,33 @@ class CrearDocumentoView(APIView):
                         categoria=resultado["categoria"],
                         palabras_detectadas=resultado["palabras_detectadas"],
                         requiere_atencion=resultado["requiere_atencion"],
+                        justificacion=resultado["justificacion"],
+                        texto_extraido=resultado["texto_extraido"],
+                        confianza=resultado["confianza"],
+                        metodo_analisis=resultado["metodo_analisis"],
+                        version_analizador=resultado["version_analizador"],
+                        error_analisis=resultado["error_analisis"],
+                        estado_revision=AnalisisDocumento.ESTADO_PENDIENTE_REVISION,
                     )
 
                 except Exception as error:
-                    print("Error análisis:", error)
+                    AnalisisDocumento.objects.create(
+                        documento=documento,
+                        prioridad="No determinada",
+                        categoria="No determinada",
+                        palabras_detectadas="",
+                        requiere_atencion=False,
+                        justificacion=(
+                            "No fue posible analizar automáticamente el documento. "
+                            "El usuario deberá revisarlo manualmente."
+                        ),
+                        texto_extraido="",
+                        confianza=0.00,
+                        metodo_analisis=AnalisisDocumento.METODO_REGLAS,
+                        version_analizador="1.1",
+                        error_analisis=str(error),
+                        estado_revision=AnalisisDocumento.ESTADO_ERROR,
+                    )
 
             tipo_movimiento = obtener_tipo_movimiento_por_nombres(
                 "Incorporación de documento",
@@ -565,7 +588,6 @@ class CrearDocumentoView(APIView):
             )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class ListaDocumentosView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]

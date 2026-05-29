@@ -13,6 +13,8 @@ import {
 } from "react-icons/fa";
 
 const formatearFecha = (fecha) => {
+  if (!fecha) return "Sin fecha";
+
   return new Date(fecha).toLocaleString("es-MX", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -57,6 +59,31 @@ const obtenerEstadosTimeline = (movimientos, expediente) => {
   }
 
   return estados;
+};
+
+const obtenerClasePrioridad = (prioridad) => {
+  if (prioridad === "Alta") return "bg-danger";
+  if (prioridad === "Media") return "bg-warning text-dark";
+  if (prioridad === "Baja") return "bg-success";
+
+  return "bg-secondary";
+};
+
+const obtenerClaseEstadoRevision = (estadoRevision) => {
+  if (estadoRevision === "aceptado") return "bg-success";
+  if (estadoRevision === "rechazado") return "bg-danger";
+  if (estadoRevision === "corregido") return "bg-primary";
+  if (estadoRevision === "error") return "bg-danger";
+
+  return "bg-warning text-dark";
+};
+
+const formatearConfianza = (confianza) => {
+  if (confianza === null || confianza === undefined || confianza === "") {
+    return "No calculada";
+  }
+
+  return `${Number(confianza).toFixed(2)}%`;
 };
 
 function DetalleExpediente() {
@@ -150,7 +177,9 @@ function DetalleExpediente() {
 
   const estaConcluido =
     expediente.estado_nombre?.toLowerCase() === "concluido";
-    const estadosTimeline = obtenerEstadosTimeline(movimientos, expediente);
+
+  const estadosTimeline = obtenerEstadosTimeline(movimientos, expediente);
+
   return (
     <div className="container mt-5">
       <div className="card shadow p-4 mb-4">
@@ -163,114 +192,83 @@ function DetalleExpediente() {
         </div>
 
         <div className="row g-3">
+          <div className="col-md-6">
+            <div className="bg-light rounded p-3 h-100">
+              <small className="text-muted">Número de expediente</small>
 
-        {/* NÚMERO */}
-        <div className="col-md-6">
-          <div className="bg-light rounded p-3 h-100">
-            <small className="text-muted">
-              Número de expediente
-            </small>
-
-            <h5 className="mb-0 fw-bold">
-              {expediente.numero_expediente}
-            </h5>
-          </div>
-        </div>
-
-        {/* ESTADO */}
-        <div className="col-md-6">
-          <div className="bg-light rounded p-3 h-100">
-            <small className="text-muted">
-              Estado
-            </small>
-
-            <br />
-
-            <span className="badge bg-warning text-dark">
-              {expediente.estado_nombre || "Sin estado"}
-            </span>
-          </div>
-        </div>
-
-        {/* FECHA APERTURA */}
-        <div className="col-md-6">
-          <div className="bg-light rounded p-3 h-100">
-            <small className="text-muted">
-              Fecha de apertura
-            </small>
-
-            <h6 className="mb-0">
-              {formatearFecha(expediente.fecha_apertura)}
-            </h6>
-          </div>
-        </div>
-
-        {/* FECHA CIERRE */}
-        <div className="col-md-6">
-          <div className="bg-light rounded p-3 h-100">
-            <small className="text-muted">
-              Fecha de cierre
-            </small>
-
-            <h6 className="mb-0">
-              {expediente.fecha_cierre
-                ? formatearFecha(expediente.fecha_cierre)
-                : "No concluido"}
-            </h6>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    {/* LÍNEA DEL TIEMPO */}
-    <div className="card shadow p-4 mt-4 mb-4">
-      <h3 className="mb-4">
-        Línea del tiempo del expediente
-      </h3>
-
-      <div className="timeline-estados">
-        {estadosTimeline.map((item, index) => (
-          <div
-            key={index}
-            className="timeline-item"
-          >
-            <div className="timeline-dot"></div>
-
-            {index !== estadosTimeline.length - 1 && (
-              <div className="timeline-line"></div>
-            )}
-
-            <div className="timeline-content">
-              <div className="d-flex justify-content-between align-items-start">
-
-                <div>
-                  <h6 className="fw-bold mb-1">
-                    {item.estado}
-                  </h6>
-
-                  <p className="text-muted mb-1">
-                    {item.descripcion}
-                  </p>
-                </div>
-
-                <span className="badge bg-primary rounded-pill">
-                  {item.fecha
-                    ? formatearFecha(item.fecha)
-                    : "Sin fecha"}
-                </span>
-
-              </div>
+              <h5 className="mb-0 fw-bold">
+                {expediente.numero_expediente}
+              </h5>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
 
-    {/* CAMBIAR ESTADO */}
-    {(rol === "administrador" ||
-      rol === "analista") &&
-      !estaConcluido && (
+          <div className="col-md-6">
+            <div className="bg-light rounded p-3 h-100">
+              <small className="text-muted">Estado</small>
+
+              <br />
+
+              <span className="badge bg-warning text-dark">
+                {expediente.estado_nombre || "Sin estado"}
+              </span>
+            </div>
+          </div>
+
+          <div className="col-md-6">
+            <div className="bg-light rounded p-3 h-100">
+              <small className="text-muted">Fecha de apertura</small>
+
+              <h6 className="mb-0">
+                {formatearFecha(expediente.fecha_apertura)}
+              </h6>
+            </div>
+          </div>
+
+          <div className="col-md-6">
+            <div className="bg-light rounded p-3 h-100">
+              <small className="text-muted">Fecha de cierre</small>
+
+              <h6 className="mb-0">
+                {expediente.fecha_cierre
+                  ? formatearFecha(expediente.fecha_cierre)
+                  : "No concluido"}
+              </h6>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card shadow p-4 mt-4 mb-4">
+        <h3 className="mb-4">Línea del tiempo del expediente</h3>
+
+        <div className="timeline-estados">
+          {estadosTimeline.map((item, index) => (
+            <div key={index} className="timeline-item">
+              <div className="timeline-dot"></div>
+
+              {index !== estadosTimeline.length - 1 && (
+                <div className="timeline-line"></div>
+              )}
+
+              <div className="timeline-content">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h6 className="fw-bold mb-1">{item.estado}</h6>
+
+                    <p className="text-muted mb-1">{item.descripcion}</p>
+                  </div>
+
+                  <span className="badge bg-primary rounded-pill">
+                    {item.fecha ? formatearFecha(item.fecha) : "Sin fecha"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {(rol === "administrador" || rol === "analista") && !estaConcluido && (
         <>
           <CambiarEstadoExpediente
             expedienteId={id}
@@ -281,17 +279,14 @@ function DetalleExpediente() {
           <div className="mt-4">
             <button
               className="btn btn-danger"
-              onClick={() =>
-                setMostrarModalConclusion(true)
-              }
+              onClick={() => setMostrarModalConclusion(true)}
             >
               Concluir expediente
             </button>
           </div>
         </>
-    )}
+      )}
 
-      {/* DOCUMENTOS */}
       <div className="card shadow p-4 mt-4">
         <h3 className="mb-3">Documentos relacionados</h3>
 
@@ -303,7 +298,7 @@ function DetalleExpediente() {
                   <div className="card-body">
                     <h5 className="fw-bold mb-1">
                       <FaFilePdf className="text-danger me-2" />
-                        {doc.nombre_documento}
+                      {doc.nombre_documento}
                     </h5>
 
                     <span className="badge bg-secondary">
@@ -325,67 +320,149 @@ function DetalleExpediente() {
                       </div>
                     </div>
 
-                    {doc.archivo_url && (
-                      <a
-                        href={doc.archivo_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn btn-primary btn-sm rounded-pill"
-                      >
-                        Ver PDF
-                      </a>
-                    )}
-
-                    <button
-                      className="btn btn-danger btn-sm rounded-pill ms-2"
-                      onClick={async () => {
-                        const confirmar = window.confirm(
-                          "¿Eliminar este documento?"
-                        );
-
-                        if (!confirmar) return;
-
-                        try {
-                          await expedienteService.eliminarDocumento(doc.id);
-                          cargarDatos();
-                        } catch (error) {
-                          console.error(error);
-                          alert("No se pudo eliminar.");
-                        }
-                      }}
-                    >
-                      Eliminar
-                    </button>
-
-                    {doc.analisis && (
-                      <div className="mt-3">
-                        <span
-                          className={`badge ${
-                            doc.analisis.prioridad === "Alta"
-                              ? "bg-danger"
-                              : doc.analisis.prioridad === "Media"
-                              ? "bg-warning text-dark"
-                              : "bg-success"
-                          }`}
+                    <div className="d-flex flex-wrap gap-2 mb-3">
+                      {doc.archivo_url && (
+                        <a
+                          href={doc.archivo_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-primary btn-sm rounded-pill"
                         >
-                          {doc.analisis.prioridad}
-                        </span>
+                          Ver PDF
+                        </a>
+                      )}
 
-                        <p className="mt-2 mb-1">
-                          <strong>Categoría:</strong> {doc.analisis.categoria}
+                      <button
+                        className="btn btn-danger btn-sm rounded-pill"
+                        onClick={async () => {
+                          const confirmar = window.confirm(
+                            "¿Eliminar este documento?"
+                          );
+
+                          if (!confirmar) return;
+
+                          try {
+                            await expedienteService.eliminarDocumento(doc.id);
+                            cargarDatos();
+                          } catch (error) {
+                            console.error(error);
+                            alert("No se pudo eliminar.");
+                          }
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+
+                    {doc.analisis ? (
+                      <div className="border rounded-4 p-3 mt-3 bg-light">
+                        <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                          <div>
+                            <h6 className="fw-bold mb-1">
+                              <FaShieldAlt className="me-2 text-primary" />
+                              Análisis asistido del documento
+                            </h6>
+
+                            <small className="text-muted">
+                              Sugerencia automática. No representa una decisión
+                              final del expediente.
+                            </small>
+                          </div>
+
+                          <span
+                            className={`badge ${obtenerClaseEstadoRevision(
+                              doc.analisis.estado_revision
+                            )}`}
+                          >
+                            {doc.analisis.estado_revision_display ||
+                              "Pendiente de revisión"}
+                          </span>
+                        </div>
+
+                        <div className="alert alert-warning py-2 px-3 small mb-3">
+                          <FaExclamationTriangle className="me-2" />
+                          La clasificación debe ser revisada por un usuario
+                          analista o administrador antes de considerarse válida.
+                        </div>
+
+                        <div className="d-flex flex-wrap gap-2 mb-3">
+                          <span
+                            className={`badge ${obtenerClasePrioridad(
+                              doc.analisis.prioridad
+                            )}`}
+                          >
+                            Prioridad sugerida: {doc.analisis.prioridad}
+                          </span>
+
+                          <span className="badge bg-info text-dark">
+                            Confianza:{" "}
+                            {formatearConfianza(doc.analisis.confianza)}
+                          </span>
+
+                          {doc.analisis.requiere_atencion && (
+                            <span className="badge bg-danger">
+                              Requiere atención
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mb-2">
+                          <FaTag className="me-2 text-secondary" />
+                          <strong>Categoría sugerida:</strong>{" "}
+                          {doc.analisis.categoria}
                         </p>
 
+                        {doc.analisis.justificacion && (
+                          <p className="mb-2">
+                            <strong>Justificación:</strong>{" "}
+                            {doc.analisis.justificacion}
+                          </p>
+                        )}
+
                         {doc.analisis.palabras_detectadas && (
-                          <p className="mb-1">
+                          <p className="mb-2">
                             <strong>Palabras detectadas:</strong>{" "}
                             {doc.analisis.palabras_detectadas}
                           </p>
                         )}
 
-                        <p className="mb-0">
-                          <strong>Requiere atención:</strong>{" "}
-                          {doc.analisis.requiere_atencion ? "Sí" : "No"}
-                        </p>
+                        {doc.analisis.texto_extraido_preview && (
+                          <div className="mt-3">
+                            <strong>Vista previa del texto extraído:</strong>
+
+                            <div className="bg-white border rounded p-2 mt-1 small text-muted">
+                              {doc.analisis.texto_extraido_preview}
+                            </div>
+                          </div>
+                        )}
+
+                        <hr />
+
+                        <div className="small text-muted">
+  <div>
+    <strong>Fecha del análisis:</strong>{" "}
+    {formatearFecha(doc.analisis.creado_en)}
+  </div>
+
+  {doc.analisis.revisado_por_nombre && (
+    <div>
+      <FaUser className="me-1" />
+      <strong>Revisado por:</strong>{" "}
+      {doc.analisis.revisado_por_nombre}
+    </div>
+  )}
+
+  {doc.analisis.error_analisis && (
+    <div className="text-danger mt-2">
+      <strong>Error de análisis:</strong>{" "}
+      {doc.analisis.error_analisis}
+    </div>
+  )}
+</div>
+                      </div>
+                    ) : (
+                      <div className="alert alert-secondary small mt-3 mb-0">
+                        Este documento aún no tiene análisis automático.
                       </div>
                     )}
                   </div>
@@ -411,7 +488,9 @@ function DetalleExpediente() {
               <li key={mov.id} className="list-group-item">
                 <strong>{mov.tipo_movimiento}</strong> - {mov.descripcion}
                 <br />
-                <small className="text-muted">{formatearFecha(mov.fecha)}</small>
+                <small className="text-muted">
+                  {formatearFecha(mov.fecha)}
+                </small>
               </li>
             ))}
           </ul>
