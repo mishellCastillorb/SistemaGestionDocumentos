@@ -27,6 +27,9 @@ from .views import (
     DetalleMovimientoView,
     SiguienteFolioView,
     EliminarDocumentoView,
+    AceptarAnalisisDocumentoView,
+    RechazarAnalisisDocumentoView,
+    CorregirAnalisisDocumentoView,  
 )
 from .views_catalogos import ListaTiposDocumentoView
 from .views_dashboard import DashboardResumenView
@@ -97,4 +100,18 @@ urlpatterns = [
     path("catalogos/tipos-documento/", ListaTiposDocumentoView.as_view()),
 
     path("dashboard/resumen/", DashboardResumenView.as_view()),
+    
+    path(
+    "analisis-documentos/<int:analisis_id>/aceptar/",
+    AceptarAnalisisDocumentoView.as_view(),
+    name="aceptar_analisis_documento",),
+    path(
+    "analisis-documentos/<int:analisis_id>/rechazar/",
+    RechazarAnalisisDocumentoView.as_view(),
+    name="rechazar_analisis_documento",),
+    path(
+    "analisis-documentos/<int:analisis_id>/corregir/",
+    CorregirAnalisisDocumentoView.as_view(),
+    name="corregir_analisis_documento",
+),
 ]

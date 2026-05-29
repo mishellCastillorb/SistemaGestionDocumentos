@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import expedienteService from "../../../services/expedienteService";
+import analisisDocumentoService from "../../../services/analisisDocumentoService";
 import CambiarEstadoExpediente from "../components/CambiarEstadoExpediente";
 import AgregarDocumento from "../components/AgregarDocumento";
 import authService from "../../../services/authService";
 import {
-  FaFilePdf,
-  FaTag,
-  FaUser,
-  FaShieldAlt,
+  FaCheckCircle,
+  FaEdit,
   FaExclamationTriangle,
+  FaFilePdf,
+  FaShieldAlt,
+  FaTag,
+  FaTimesCircle,
+  FaUser,
 } from "react-icons/fa";
 
 const formatearFecha = (fecha) => {
@@ -99,8 +103,24 @@ function DetalleExpediente() {
   const [observacionesFinales, setObservacionesFinales] = useState("");
   const [concluyendo, setConcluyendo] = useState(false);
 
+  const [analisisProcesandoId, setAnalisisProcesandoId] = useState(null);
+
+  const [mostrarModalRevision, setMostrarModalRevision] = useState(false);
+  const [tipoRevision, setTipoRevision] = useState("");
+  const [analisisRevision, setAnalisisRevision] = useState(null);
+  const [comentarioRevision, setComentarioRevision] = useState("");
+
+  const [mostrarModalCorreccion, setMostrarModalCorreccion] = useState(false);
+  const [analisisSeleccionado, setAnalisisSeleccionado] = useState(null);
+  const [categoriaFinal, setCategoriaFinal] = useState("");
+  const [prioridadFinal, setPrioridadFinal] = useState("Media");
+  const [comentarioCorreccion, setComentarioCorreccion] = useState("");
+  const [modoCorreccion, setModoCorreccion] = useState("corregir");
+
   const perfil = authService.getPerfilGuardado();
   const rol = perfil?.rol?.toLowerCase();
+
+  const puedeRevisarAnalisis = rol === "administrador" || rol === "analista";
 
   useEffect(() => {
     cargarDatos();
@@ -156,6 +176,148 @@ function DetalleExpediente() {
       alert(error.response?.data?.error || "Error al concluir expediente.");
     } finally {
       setConcluyendo(false);
+    }
+  };
+
+  const abrirModalRevision = (tipo, analisis) => {
+    setTipoRevision(tipo);
+    setAnalisisRevision(analisis);
+
+    if (tipo === "aceptar") {
+      setComentarioRevision(
+        "La sugerencia coincide con el contenido del documento."
+      );
+    }
+
+    if (tipo === "rechazar") {
+      setComentarioRevision(
+        "La sugerencia no corresponde con el contenido del documento."
+      );
+    }
+
+    setMostrarModalRevision(true);
+  };
+
+  const cerrarModalRevision = () => {
+    setMostrarModalRevision(false);
+    setTipoRevision("");
+    setAnalisisRevision(null);
+    setComentarioRevision("");
+  };
+
+  const confirmarRevisionAnalisis = async () => {
+    if (!analisisRevision) return;
+
+    if (tipoRevision === "rechazar" && !comentarioRevision.trim()) {
+      alert("Para rechazar la sugerencia debes escribir un comentario.");
+      return;
+    }
+
+    try {
+      setAnalisisProcesandoId(analisisRevision.id);
+
+      if (tipoRevision === "aceptar") {
+        await analisisDocumentoService.aceptarAnalisis(
+          analisisRevision.id,
+          comentarioRevision.trim()
+        );
+
+        alert("Clasificación aceptada correctamente.");
+      }
+
+      if (tipoRevision === "rechazar") {
+        await analisisDocumentoService.rechazarAnalisis(
+          analisisRevision.id,
+          comentarioRevision.trim()
+        );
+
+        alert("Clasificación rechazada correctamente.");
+      }
+
+      cerrarModalRevision();
+      await cargarDatos();
+    } catch (error) {
+      console.error(error);
+      alert(
+        error.response?.data?.error ||
+          "No se pudo registrar la revisión del análisis."
+      );
+    } finally {
+      setAnalisisProcesandoId(null);
+    }
+  };
+
+  const abrirModalCorreccion = (analisis, modo = "corregir") => {
+    setAnalisisSeleccionado(analisis);
+    setModoCorreccion(modo);
+
+    if (modo === "manual") {
+      setCategoriaFinal("");
+      setPrioridadFinal("Media");
+      setComentarioCorreccion(
+        "Clasificación asignada manualmente después de rechazar la sugerencia automática."
+      );
+    } else {
+      setCategoriaFinal(analisis.categoria || "");
+      setPrioridadFinal(analisis.prioridad || "Media");
+      setComentarioCorreccion("");
+    }
+
+    setMostrarModalCorreccion(true);
+  };
+
+  const cerrarModalCorreccion = () => {
+    setMostrarModalCorreccion(false);
+    setAnalisisSeleccionado(null);
+    setCategoriaFinal("");
+    setPrioridadFinal("Media");
+    setComentarioCorreccion("");
+    setModoCorreccion("corregir");
+  };
+
+  const corregirAnalisis = async () => {
+    if (!analisisSeleccionado) return;
+
+    if (!categoriaFinal.trim()) {
+      alert("Escribe la categoría final.");
+      return;
+    }
+
+    if (!prioridadFinal) {
+      alert("Selecciona la prioridad final.");
+      return;
+    }
+
+    if (!comentarioCorreccion.trim()) {
+      alert("Escribe un comentario que justifique la clasificación.");
+      return;
+    }
+
+    try {
+      setAnalisisProcesandoId(analisisSeleccionado.id);
+
+      await analisisDocumentoService.corregirAnalisis(analisisSeleccionado.id, {
+        categoria_final: categoriaFinal.trim(),
+        prioridad_final: prioridadFinal,
+        comentario_revisor: comentarioCorreccion.trim(),
+      });
+
+      alert(
+        modoCorreccion === "manual"
+          ? "Clasificación manual guardada correctamente."
+          : "Clasificación corregida correctamente."
+      );
+
+      cerrarModalCorreccion();
+      await cargarDatos();
+    } catch (error) {
+      console.error(error);
+      alert(
+        error.response?.data?.error ||
+          "No se pudo guardar la clasificación del análisis."
+      );
+    } finally {
+      setAnalisisProcesandoId(null);
     }
   };
 
@@ -292,183 +454,339 @@ function DetalleExpediente() {
 
         {documentos.length > 0 ? (
           <div className="row g-3">
-            {documentos.map((doc) => (
-              <div key={doc.id} className="col-md-6">
-                <div className="card border-0 shadow-sm rounded-4 h-100">
-                  <div className="card-body">
-                    <h5 className="fw-bold mb-1">
-                      <FaFilePdf className="text-danger me-2" />
-                      {doc.nombre_documento}
-                    </h5>
+            {documentos.map((doc) => {
+              const analisisPendiente =
+                doc.analisis?.estado_revision === "pendiente_revision";
 
-                    <span className="badge bg-secondary">
-                      {doc.tipo_documento_nombre}
-                    </span>
+              const analisisRechazado =
+                doc.analisis?.estado_revision === "rechazado";
 
-                    <p className="text-muted mt-3 mb-3">
-                      {doc.descripcion || "Sin descripción"}
-                    </p>
+              const mostrarAccionesAnalisis =
+                puedeRevisarAnalisis &&
+                !estaConcluido &&
+                doc.analisis &&
+                analisisPendiente;
 
-                    <div className="small text-muted mb-3">
-                      <div>
-                        <strong>Subido por:</strong>{" "}
-                        {doc.usuario_registra_nombre || "Usuario"}
+              const mostrarAsignacionManual =
+                puedeRevisarAnalisis &&
+                !estaConcluido &&
+                doc.analisis &&
+                analisisRechazado;
+
+              return (
+                <div key={doc.id} className="col-md-6">
+                  <div className="card border-0 shadow-sm rounded-4 h-100">
+                    <div className="card-body">
+                      <h5 className="fw-bold mb-1">
+                        <FaFilePdf className="text-danger me-2" />
+                        {doc.nombre_documento}
+                      </h5>
+
+                      <span className="badge bg-secondary">
+                        {doc.tipo_documento_nombre}
+                      </span>
+
+                      <p className="text-muted mt-3 mb-3">
+                        {doc.descripcion || "Sin descripción"}
+                      </p>
+
+                      <div className="small text-muted mb-3">
+                        <div>
+                          <strong>Subido por:</strong>{" "}
+                          {doc.usuario_registra_nombre || "Usuario"}
+                        </div>
+
+                        <div>
+                          <strong>ID documento:</strong> #{doc.id}
+                        </div>
                       </div>
 
-                      <div>
-                        <strong>ID documento:</strong> #{doc.id}
-                      </div>
-                    </div>
+                      <div className="d-flex flex-wrap gap-2 mb-3">
+                        {doc.archivo_url && (
+                          <a
+                            href={doc.archivo_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-primary btn-sm rounded-pill"
+                          >
+                            Ver PDF
+                          </a>
+                        )}
 
-                    <div className="d-flex flex-wrap gap-2 mb-3">
-                      {doc.archivo_url && (
-                        <a
-                          href={doc.archivo_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn btn-primary btn-sm rounded-pill"
+                        <button
+                          className="btn btn-danger btn-sm rounded-pill"
+                          onClick={async () => {
+                            const confirmar = window.confirm(
+                              "¿Eliminar este documento?"
+                            );
+
+                            if (!confirmar) return;
+
+                            try {
+                              await expedienteService.eliminarDocumento(doc.id);
+                              cargarDatos();
+                            } catch (error) {
+                              console.error(error);
+                              alert("No se pudo eliminar.");
+                            }
+                          }}
                         >
-                          Ver PDF
-                        </a>
-                      )}
+                          Eliminar
+                        </button>
+                      </div>
 
-                      <button
-                        className="btn btn-danger btn-sm rounded-pill"
-                        onClick={async () => {
-                          const confirmar = window.confirm(
-                            "¿Eliminar este documento?"
-                          );
+                      {doc.analisis ? (
+                        <div className="border rounded-4 p-3 mt-3 bg-light">
+                          <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                              <h6 className="fw-bold mb-1">
+                                <FaShieldAlt className="me-2 text-primary" />
+                                Análisis asistido del documento
+                              </h6>
 
-                          if (!confirmar) return;
-
-                          try {
-                            await expedienteService.eliminarDocumento(doc.id);
-                            cargarDatos();
-                          } catch (error) {
-                            console.error(error);
-                            alert("No se pudo eliminar.");
-                          }
-                        }}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-
-                    {doc.analisis ? (
-                      <div className="border rounded-4 p-3 mt-3 bg-light">
-                        <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-                          <div>
-                            <h6 className="fw-bold mb-1">
-                              <FaShieldAlt className="me-2 text-primary" />
-                              Análisis asistido del documento
-                            </h6>
-
-                            <small className="text-muted">
-                              Sugerencia automática. No representa una decisión
-                              final del expediente.
-                            </small>
-                          </div>
-
-                          <span
-                            className={`badge ${obtenerClaseEstadoRevision(
-                              doc.analisis.estado_revision
-                            )}`}
-                          >
-                            {doc.analisis.estado_revision_display ||
-                              "Pendiente de revisión"}
-                          </span>
-                        </div>
-
-                        <div className="alert alert-warning py-2 px-3 small mb-3">
-                          <FaExclamationTriangle className="me-2" />
-                          La clasificación debe ser revisada por un usuario
-                          analista o administrador antes de considerarse válida.
-                        </div>
-
-                        <div className="d-flex flex-wrap gap-2 mb-3">
-                          <span
-                            className={`badge ${obtenerClasePrioridad(
-                              doc.analisis.prioridad
-                            )}`}
-                          >
-                            Prioridad sugerida: {doc.analisis.prioridad}
-                          </span>
-
-                          <span className="badge bg-info text-dark">
-                            Confianza:{" "}
-                            {formatearConfianza(doc.analisis.confianza)}
-                          </span>
-
-                          {doc.analisis.requiere_atencion && (
-                            <span className="badge bg-danger">
-                              Requiere atención
-                            </span>
-                          )}
-                        </div>
-
-                        <p className="mb-2">
-                          <FaTag className="me-2 text-secondary" />
-                          <strong>Categoría sugerida:</strong>{" "}
-                          {doc.analisis.categoria}
-                        </p>
-
-                        {doc.analisis.justificacion && (
-                          <p className="mb-2">
-                            <strong>Justificación:</strong>{" "}
-                            {doc.analisis.justificacion}
-                          </p>
-                        )}
-
-                        {doc.analisis.palabras_detectadas && (
-                          <p className="mb-2">
-                            <strong>Palabras detectadas:</strong>{" "}
-                            {doc.analisis.palabras_detectadas}
-                          </p>
-                        )}
-
-                        {doc.analisis.texto_extraido_preview && (
-                          <div className="mt-3">
-                            <strong>Vista previa del texto extraído:</strong>
-
-                            <div className="bg-white border rounded p-2 mt-1 small text-muted">
-                              {doc.analisis.texto_extraido_preview}
+                              <small className="text-muted">
+                                Sugerencia automática. No representa una
+                                decisión final del expediente.
+                              </small>
                             </div>
+
+                            <span
+                              className={`badge ${obtenerClaseEstadoRevision(
+                                doc.analisis.estado_revision
+                              )}`}
+                            >
+                              {doc.analisis.estado_revision_display ||
+                                "Pendiente de revisión"}
+                            </span>
                           </div>
-                        )}
 
-                        <hr />
+                          {doc.analisis.estado_revision ===
+                            "pendiente_revision" && (
+                            <div className="alert alert-warning py-2 px-3 small mb-3">
+                              <FaExclamationTriangle className="me-2" />
+                              La clasificación debe ser revisada por un usuario
+                              analista o administrador antes de considerarse
+                              válida.
+                            </div>
+                          )}
 
-                        <div className="small text-muted">
-  <div>
-    <strong>Fecha del análisis:</strong>{" "}
-    {formatearFecha(doc.analisis.creado_en)}
-  </div>
+                          {doc.analisis.estado_revision === "aceptado" && (
+                            <div className="alert alert-success py-2 px-3 small mb-3">
+                              <FaCheckCircle className="me-2" />
+                              La sugerencia fue aceptada por un usuario revisor.
+                            </div>
+                          )}
 
-  {doc.analisis.revisado_por_nombre && (
-    <div>
-      <FaUser className="me-1" />
-      <strong>Revisado por:</strong>{" "}
-      {doc.analisis.revisado_por_nombre}
-    </div>
-  )}
+                          {doc.analisis.estado_revision === "corregido" && (
+                            <div className="alert alert-primary py-2 px-3 small mb-3">
+                              <FaEdit className="me-2" />
+                              La sugerencia fue corregida por un usuario
+                              revisor.
+                            </div>
+                          )}
 
-  {doc.analisis.error_analisis && (
-    <div className="text-danger mt-2">
-      <strong>Error de análisis:</strong>{" "}
-      {doc.analisis.error_analisis}
-    </div>
-  )}
-</div>
-                      </div>
-                    ) : (
-                      <div className="alert alert-secondary small mt-3 mb-0">
-                        Este documento aún no tiene análisis automático.
-                      </div>
-                    )}
+                          {doc.analisis.estado_revision === "rechazado" && (
+                            <div className="alert alert-danger py-2 px-3 small mb-3">
+                              <FaTimesCircle className="me-2" />
+                              La sugerencia fue rechazada por un usuario
+                              revisor.
+                            </div>
+                          )}
+
+                          <div className="d-flex flex-wrap gap-2 mb-3">
+                            <span
+                              className={`badge ${obtenerClasePrioridad(
+                                doc.analisis.prioridad
+                              )}`}
+                            >
+                              Prioridad sugerida: {doc.analisis.prioridad}
+                            </span>
+
+                            <span className="badge bg-info text-dark">
+                              Confianza:{" "}
+                              {formatearConfianza(doc.analisis.confianza)}
+                            </span>
+
+                            {doc.analisis.requiere_atencion && (
+                              <span className="badge bg-danger">
+                                Requiere atención
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="mb-2">
+                            <FaTag className="me-2 text-secondary" />
+                            <strong>Categoría sugerida:</strong>{" "}
+                            {doc.analisis.categoria}
+                          </p>
+
+                          {doc.analisis.justificacion && (
+                            <p className="mb-2">
+                              <strong>Justificación:</strong>{" "}
+                              {doc.analisis.justificacion}
+                            </p>
+                          )}
+
+                          {doc.analisis.palabras_detectadas && (
+                            <p className="mb-2">
+                              <strong>Palabras detectadas:</strong>{" "}
+                              {doc.analisis.palabras_detectadas}
+                            </p>
+                          )}
+
+                          {doc.analisis.texto_extraido_preview && (
+                            <div className="mt-3">
+                              <strong>Vista previa del texto extraído:</strong>
+
+                              <div className="bg-white border rounded p-2 mt-1 small text-muted">
+                                {doc.analisis.texto_extraido_preview}
+                              </div>
+                            </div>
+                          )}
+
+                          {doc.analisis.estado_revision !==
+                            "pendiente_revision" && (
+                            <div className="border rounded-3 p-3 mt-3 bg-white">
+                              <h6 className="fw-bold mb-2">
+                                Resultado de revisión humana
+                              </h6>
+
+                              {doc.analisis.estado_revision !== "rechazado" ? (
+                                <>
+                                  <p className="mb-1">
+                                    <strong>Categoría final:</strong>{" "}
+                                    {doc.analisis.categoria_final ||
+                                      "Sin categoría final"}
+                                  </p>
+
+                                  <p className="mb-1">
+                                    <strong>Prioridad final:</strong>{" "}
+                                    {doc.analisis.prioridad_final ||
+                                      "Sin prioridad final"}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="mb-1 text-danger">
+                                  La sugerencia fue rechazada y no se asignó una
+                                  clasificación final. Si se requiere una
+                                  clasificación distinta, debe usarse la opción
+                                  Asignar clasificación manual.
+                                </p>
+                              )}
+
+                              {doc.analisis.comentario_revisor && (
+                                <p className="mb-1">
+                                  <strong>Comentario:</strong>{" "}
+                                  {doc.analisis.comentario_revisor}
+                                </p>
+                              )}
+
+                              {mostrarAsignacionManual && (
+                                <div className="mt-3">
+                                  <button
+                                    className="btn btn-outline-primary btn-sm rounded-pill"
+                                    disabled={
+                                      analisisProcesandoId === doc.analisis.id
+                                    }
+                                    onClick={() =>
+                                      abrirModalCorreccion(
+                                        doc.analisis,
+                                        "manual"
+                                      )
+                                    }
+                                  >
+                                    <FaEdit className="me-1" />
+                                    Asignar clasificación manual
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {mostrarAccionesAnalisis && (
+                            <div className="d-flex flex-wrap gap-2 mt-3">
+                              <button
+                                className="btn btn-success btn-sm rounded-pill"
+                                disabled={
+                                  analisisProcesandoId === doc.analisis.id
+                                }
+                                onClick={() =>
+                                  abrirModalRevision("aceptar", doc.analisis)
+                                }
+                              >
+                                <FaCheckCircle className="me-1" />
+                                Aceptar sugerencia
+                              </button>
+
+                              <button
+                                className="btn btn-outline-danger btn-sm rounded-pill"
+                                disabled={
+                                  analisisProcesandoId === doc.analisis.id
+                                }
+                                onClick={() =>
+                                  abrirModalRevision("rechazar", doc.analisis)
+                                }
+                              >
+                                <FaTimesCircle className="me-1" />
+                                Rechazar sugerencia
+                              </button>
+
+                              <button
+                                className="btn btn-outline-primary btn-sm rounded-pill"
+                                disabled={
+                                  analisisProcesandoId === doc.analisis.id
+                                }
+                                onClick={() =>
+                                  abrirModalCorreccion(doc.analisis)
+                                }
+                              >
+                                <FaEdit className="me-1" />
+                                Corregir
+                              </button>
+                            </div>
+                          )}
+
+                          <hr />
+
+                          <div className="small text-muted">
+                            <div>
+                              <strong>Fecha del análisis:</strong>{" "}
+                              {formatearFecha(doc.analisis.creado_en)}
+                            </div>
+
+                            {doc.analisis.revisado_por_nombre && (
+                              <div>
+                                <FaUser className="me-1" />
+                                <strong>Revisado por:</strong>{" "}
+                                {doc.analisis.revisado_por_nombre}
+                              </div>
+                            )}
+
+                            {doc.analisis.revisado_en && (
+                              <div>
+                                <strong>Fecha de revisión:</strong>{" "}
+                                {formatearFecha(doc.analisis.revisado_en)}
+                              </div>
+                            )}
+
+                            {doc.analisis.error_analisis && (
+                              <div className="text-danger mt-2">
+                                <strong>Error de análisis:</strong>{" "}
+                                {doc.analisis.error_analisis}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="alert alert-secondary small mt-3 mb-0">
+                          Este documento aún no tiene análisis automático.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p>No hay documentos registrados.</p>
@@ -570,6 +888,221 @@ function DetalleExpediente() {
                   disabled={concluyendo}
                 >
                   {concluyendo ? "Concluyendo..." : "Concluir expediente"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalRevision && (
+        <div
+          className="modal fade show"
+          style={{
+            display: "block",
+            backgroundColor: "rgba(0,0,0,0.45)",
+          }}
+          tabIndex="-1"
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content rounded-4 border-0 shadow">
+              <div className="modal-header">
+                <h5 className="modal-title fw-bold">
+                  {tipoRevision === "aceptar"
+                    ? "Aceptar sugerencia"
+                    : "Rechazar sugerencia"}
+                </h5>
+
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={cerrarModalRevision}
+                  disabled={analisisProcesandoId !== null}
+                />
+              </div>
+
+              <div className="modal-body">
+                {tipoRevision === "aceptar" && (
+                  <div className="alert alert-success small">
+                    Al aceptar, la categoría y prioridad sugeridas pasarán a ser
+                    la clasificación final del documento.
+                  </div>
+                )}
+
+                {tipoRevision === "rechazar" && (
+                  <div className="alert alert-danger small">
+                    Al rechazar, se descartará la clasificación sugerida por el
+                    análisis automático. Si deseas asignar una clasificación
+                    final diferente, después podrás usar la opción Asignar
+                    clasificación manual.
+                  </div>
+                )}
+
+                {analisisRevision && (
+                  <div className="border rounded p-3 mb-3 bg-light">
+                    <p className="mb-1">
+                      <strong>Categoría sugerida:</strong>{" "}
+                      {analisisRevision.categoria}
+                    </p>
+
+                    <p className="mb-1">
+                      <strong>Prioridad sugerida:</strong>{" "}
+                      {analisisRevision.prioridad}
+                    </p>
+
+                    <p className="mb-0">
+                      <strong>Confianza:</strong>{" "}
+                      {formatearConfianza(analisisRevision.confianza)}
+                    </p>
+                  </div>
+                )}
+
+                <div className="mb-3">
+                  <label className="form-label">
+                    {tipoRevision === "aceptar"
+                      ? "Comentario del revisor, opcional"
+                      : "Motivo del rechazo"}
+                  </label>
+
+                  <textarea
+                    className="form-control"
+                    rows="4"
+                    value={comentarioRevision}
+                    onChange={(e) => setComentarioRevision(e.target.value)}
+                    placeholder={
+                      tipoRevision === "aceptar"
+                        ? "Puedes agregar un comentario sobre la aceptación..."
+                        : "Explica por qué se rechaza la sugerencia..."
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={cerrarModalRevision}
+                  disabled={analisisProcesandoId !== null}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  className={
+                    tipoRevision === "aceptar"
+                      ? "btn btn-success"
+                      : "btn btn-danger"
+                  }
+                  onClick={confirmarRevisionAnalisis}
+                  disabled={analisisProcesandoId !== null}
+                >
+                  {analisisProcesandoId !== null
+                    ? "Guardando..."
+                    : tipoRevision === "aceptar"
+                    ? "Aceptar sugerencia"
+                    : "Rechazar sugerencia"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalCorreccion && (
+        <div
+          className="modal fade show"
+          style={{
+            display: "block",
+            backgroundColor: "rgba(0,0,0,0.45)",
+          }}
+          tabIndex="-1"
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content rounded-4 border-0 shadow">
+              <div className="modal-header">
+                <h5 className="modal-title fw-bold">
+                  {modoCorreccion === "manual"
+                    ? "Asignar clasificación manual"
+                    : "Corregir clasificación sugerida"}
+                </h5>
+
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={cerrarModalCorreccion}
+                  disabled={analisisProcesandoId !== null}
+                />
+              </div>
+
+              <div className="modal-body">
+                <div className="alert alert-info small">
+                  {modoCorreccion === "manual"
+                    ? "La sugerencia automática fue rechazada. Ahora puedes asignar una clasificación final manual para el documento."
+                    : "La clasificación final será registrada como decisión humana. La sugerencia automática se conservará como referencia."}
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Categoría final</label>
+
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={categoriaFinal}
+                    onChange={(e) => setCategoriaFinal(e.target.value)}
+                    placeholder="Ej. Conducta administrativa"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Prioridad final</label>
+
+                  <select
+                    className="form-select"
+                    value={prioridadFinal}
+                    onChange={(e) => setPrioridadFinal(e.target.value)}
+                  >
+                    <option value="Alta">Alta</option>
+                    <option value="Media">Media</option>
+                    <option value="Baja">Baja</option>
+                  </select>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Comentario del revisor</label>
+
+                  <textarea
+                    className="form-control"
+                    rows="4"
+                    value={comentarioCorreccion}
+                    onChange={(e) => setComentarioCorreccion(e.target.value)}
+                    placeholder={
+                      modoCorreccion === "manual"
+                        ? "Explica por qué se asigna esta clasificación manual..."
+                        : "Explica por qué se corrige la sugerencia..."
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  className="btn btn-outline-secondary"
+                  onClick={cerrarModalCorreccion}
+                  disabled={analisisProcesandoId !== null}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  className="btn btn-primary"
+                  onClick={corregirAnalisis}
+                  disabled={analisisProcesandoId !== null}
+                >
+                  {analisisProcesandoId !== null
+                    ? "Guardando..."
+                    : modoCorreccion === "manual"
+                    ? "Guardar clasificación manual"
+                    : "Guardar corrección"}
                 </button>
               </div>
             </div>

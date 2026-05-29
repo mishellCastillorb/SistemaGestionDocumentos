@@ -37,10 +37,12 @@ from .permissions import (
 
 from .serializers import (
     AdministradorPasswordTemporalSerializer,
+    AnalisisDocumentoSerializer,
     AsignarResponsableSerializer,
     CambiarEstadoExpedienteSerializer,
     CambiarPasswordSerializer,
     ConcluirExpedienteSerializer,
+    CorreccionAnalisisDocumentoSerializer,
     DocumentoSerializer,
     ExpedienteSerializer,
     MovimientoExpedienteSerializer,
@@ -48,6 +50,7 @@ from .serializers import (
     PasswordResetRequestSerializer,
     QuejaDenunciaSerializer,
     RegistrarObservacionSerializer,
+    RevisionAnalisisDocumentoSerializer,
     UsuarioSerializer,
 )
 
@@ -704,5 +707,103 @@ class EliminarDocumentoView(generics.DestroyAPIView):
 
         return Response(
             {"mensaje": "Documento eliminado correctamente."},
+            status=status.HTTP_200_OK,
+        )
+        
+class AceptarAnalisisDocumentoView(APIView):
+    permission_classes = [IsAuthenticated, EsAnalistaOAdministrador]
+
+    def post(self, request, analisis_id):
+        analisis = get_object_or_404(AnalisisDocumento, id=analisis_id)
+
+        if analisis.estado_revision == AnalisisDocumento.ESTADO_ACEPTADO:
+            return Response(
+                {"error": "Este análisis ya fue aceptado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = RevisionAnalisisDocumentoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        analisis.estado_revision = AnalisisDocumento.ESTADO_ACEPTADO
+        analisis.categoria_final = analisis.categoria
+        analisis.prioridad_final = analisis.prioridad
+        analisis.comentario_revisor = serializer.validated_data.get(
+            "comentario_revisor",
+            "",
+        )
+        analisis.revisado_por = request.user
+        analisis.revisado_en = now()
+        analisis.save()
+
+        return Response(
+            {
+                "mensaje": "Clasificación sugerida aceptada correctamente.",
+                "analisis": AnalisisDocumentoSerializer(analisis).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class RechazarAnalisisDocumentoView(APIView):
+    permission_classes = [IsAuthenticated, EsAnalistaOAdministrador]
+
+    def post(self, request, analisis_id):
+        analisis = get_object_or_404(AnalisisDocumento, id=analisis_id)
+
+        if analisis.estado_revision == AnalisisDocumento.ESTADO_RECHAZADO:
+            return Response(
+                {"error": "Este análisis ya fue rechazado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = RevisionAnalisisDocumentoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        analisis.estado_revision = AnalisisDocumento.ESTADO_RECHAZADO
+        analisis.categoria_final = ""
+        analisis.prioridad_final = ""
+        analisis.comentario_revisor = serializer.validated_data.get(
+            "comentario_revisor",
+            "",
+        )
+        analisis.revisado_por = request.user
+        analisis.revisado_en = now()
+        analisis.save()
+
+        return Response(
+            {
+                "mensaje": "Clasificación sugerida rechazada correctamente.",
+                "analisis": AnalisisDocumentoSerializer(analisis).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class CorregirAnalisisDocumentoView(APIView):
+    permission_classes = [IsAuthenticated, EsAnalistaOAdministrador]
+
+    def post(self, request, analisis_id):
+        analisis = get_object_or_404(AnalisisDocumento, id=analisis_id)
+
+        serializer = CorreccionAnalisisDocumentoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        analisis.estado_revision = AnalisisDocumento.ESTADO_CORREGIDO
+        analisis.categoria_final = serializer.validated_data["categoria_final"]
+        analisis.prioridad_final = serializer.validated_data["prioridad_final"]
+        analisis.comentario_revisor = serializer.validated_data.get(
+            "comentario_revisor",
+            "",
+        )
+        analisis.revisado_por = request.user
+        analisis.revisado_en = now()
+        analisis.save()
+
+        return Response(
+            {
+                "mensaje": "Clasificación corregida correctamente.",
+                "analisis": AnalisisDocumentoSerializer(analisis).data,
+            },
             status=status.HTTP_200_OK,
         )

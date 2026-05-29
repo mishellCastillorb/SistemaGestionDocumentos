@@ -376,3 +376,37 @@ class MovimientoExpedienteSerializer(serializers.ModelSerializer):
             "fecha",
             "usuario",
         ]
+
+
+class RevisionAnalisisDocumentoSerializer(serializers.Serializer):
+    comentario_revisor = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=1000,
+    )
+
+
+class CorreccionAnalisisDocumentoSerializer(serializers.Serializer):
+    categoria_final = serializers.CharField(max_length=100)
+
+    prioridad_final = serializers.ChoiceField(
+        choices=[
+            ("Alta", "Alta"),
+            ("Media", "Media"),
+            ("Baja", "Baja"),
+        ]
+    )
+
+    comentario_revisor = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=1000,
+    )
+
+    def validate_categoria_final(self, value):
+        if not value.strip():
+            raise serializers.ValidationError(
+                "La categoría final no puede estar vacía."
+            )
+
+        return value.strip()
