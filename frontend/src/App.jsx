@@ -9,7 +9,7 @@ import CrearQueja from "./features/quejas/pages/CrearQueja";
 import DetalleQueja from "./features/quejas/pages/DetalleQueja";
 import ListaExpedientes from "./features/expedientes/pages/ListaExpedientes";
 import DetalleExpediente from "./features/expedientes/pages/DetalleExpediente";
-import ProtectedRoute from "./core/guards/ProtectedRoute";
+import ProtectedRoute from "./core/guards/protectedRoute";
 import MainLayout from "./shared/components/layout/MainLayout";
 
 function App() {
@@ -29,7 +29,10 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/cambiar-password" element={<CambiarPassword />} />
-          <Route path="/admin/usuarios-temporales" element={<AdminPasswordTemporal />} />
+          <Route
+            path="/admin/usuarios-temporales"
+            element={<AdminPasswordTemporal />}
+          />
           <Route path="/quejas" element={<ListaQuejas />} />
           <Route path="/quejas/nueva" element={<CrearQueja />} />
           <Route path="/quejas/:id" element={<DetalleQueja />} />

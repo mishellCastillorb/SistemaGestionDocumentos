@@ -1,42 +1,95 @@
 from django.conf import settings
 from django.core.mail import send_mail
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from backend.expedientes.models import TipoRegistro, Area
-from backend.expedientes.models import QuejaDenuncia
-from rest_framework import generics, status
-
-from rest_framework import status
-from backend.expedientes.models import (
-    Expediente, QuejaDenuncia, EstadoExpediente, ExpedienteUsuario, Usuario,
-    TipoParticipacion, MotivoConclusion, Documento, MovimientoExpediente, TipoMovimiento,
-    PasswordResetRequest
-)
-from .serializers import (
-    ExpedienteSerializer,
-    QuejaDenunciaSerializer,
-    UsuarioSerializer,
-    CambiarPasswordSerializer,
-    PasswordResetRequestSerializer,
-    PasswordResetRequestModelSerializer,
-    AdministradorPasswordTemporalSerializer,
-    AsignarResponsableSerializer,
-    ConcluirExpedienteSerializer,
-    CambiarEstadoExpedienteSerializer,
-    DocumentoSerializer,
-    MovimientoExpedienteSerializer,
-    RegistrarObservacionSerializer
-)
-from .permissions import EsCapturistaOAdministrador, SoloLecturaPorRol, EsAnalistaOAdministrador, EsAdministrador
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
-from django.db import transaction
-from .models import AnalisisDocumento
-from .services.analizador_documentos import (
-    extraer_texto_pdf,
-    analizar_texto
+
+from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from backend.expedientes.models import (
+    AnalisisDocumento,
+    Area,
+    Documento,
+    EstadoExpediente,
+    Expediente,
+    ExpedienteUsuario,
+    MotivoConclusion,
+    MovimientoExpediente,
+    PasswordResetRequest,
+    QuejaDenuncia,
+    TipoMovimiento,
+    TipoParticipacion,
+    TipoRegistro,
+    Usuario,
 )
+
+from .permissions import (
+    EsAdministrador,
+    EsAnalistaOAdministrador,
+    EsCapturistaOAdministrador,
+    SoloLecturaPorRol,
+)
+
+from .serializers import (
+    AdministradorPasswordTemporalSerializer,
+    AsignarResponsableSerializer,
+    CambiarEstadoExpedienteSerializer,
+    CambiarPasswordSerializer,
+    ConcluirExpedienteSerializer,
+    DocumentoSerializer,
+    ExpedienteSerializer,
+    MovimientoExpedienteSerializer,
+    PasswordResetRequestModelSerializer,
+    PasswordResetRequestSerializer,
+    QuejaDenunciaSerializer,
+    RegistrarObservacionSerializer,
+    UsuarioSerializer,
+)
+
+from .services.analizador_documentos import (
+    analizar_texto,
+    extraer_texto_pdf,
+)
+
+
+def obtener_tipo_movimiento_por_nombres(*nombres):
+    """
+    Busca un tipo de movimiento aceptando varios nombres posibles.
+
+    Esto evita errores cuando el catálogo tiene nombres ligeramente distintos,
+    por ejemplo:
+    - "Apertura de expediente"
+    - "Creación de expediente"
+
+    Si no encuentra ningún registro, responde con error 400 en lugar de romper
+    el servidor con un DoesNotExist.
+    """
+
+    for nombre in nombres:
+        tipo_movimiento = TipoMovimiento.objects.filter(
+            nombre__iexact=nombre
+        ).first()
+
+        if tipo_movimiento:
+            return tipo_movimiento
+
+    nombres_esperados = ", ".join(nombres)
+
+    raise ValidationError(
+        {
+            "tipo_movimiento": (
+                "No se encontró ningún tipo de movimiento válido. "
+                f"Se esperaba alguno de estos nombres: {nombres_esperados}. "
+                "Verifica que los catálogos base estén cargados."
+            )
+        }
+    )
+
 
 class ListaTiposRegistroView(APIView):
     permission_classes = [IsAuthenticated]
@@ -45,6 +98,7 @@ class ListaTiposRegistroView(APIView):
         tipos = TipoRegistro.objects.all()
         data = [{"id": t.id, "nombre": t.nombre} for t in tipos]
         return Response(data)
+
 
 class ListaAreasView(APIView):
     permission_classes = [IsAuthenticated]
@@ -59,7 +113,8 @@ class SiguienteFolioView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        ultimo = QuejaDenuncia.objects.order_by('-id').first()
+        ultimo = QuejaDenuncia.objects.order_by("-id").first()
+
         if ultimo:
             siguiente = int(ultimo.folio) + 1
         else:
@@ -76,7 +131,7 @@ class ListaExpedientesView(APIView):
         serializer = ExpedienteSerializer(expedientes, many=True)
         return Response(serializer.data)
 
-from rest_framework_simplejwt.authentication import JWTAuthentication
+
 class CrearQuejaView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, EsCapturistaOAdministrador]
@@ -88,39 +143,52 @@ class CrearQuejaView(APIView):
             with transaction.atomic():
                 queja = serializer.save(usuario_registra=request.user)
 
-                estado_inicial = EstadoExpediente.objects.get(nombre__iexact='registrado')
+                estado_inicial = EstadoExpediente.objects.get(
+                    nombre__iexact="registrado"
+                )
 
                 expediente = Expediente.objects.create(
                     queja=queja,
-                    estado=estado_inicial
+                    estado=estado_inicial,
                 )
 
                 expediente.numero_expediente = f"EXP-{now().year}-{expediente.id:04d}"
                 expediente.save()
 
-                tipo_registro_queja = TipoMovimiento.objects.get(nombre__iexact='Registro de queja')
-                tipo_apertura = TipoMovimiento.objects.get(nombre__iexact='Apertura de expediente')
+                tipo_registro_queja = obtener_tipo_movimiento_por_nombres(
+                    "Registro de queja",
+                    "Creación de expediente",
+                    "Apertura de expediente",
+                )
+
+                tipo_apertura = obtener_tipo_movimiento_por_nombres(
+                    "Apertura de expediente",
+                    "Creación de expediente",
+                )
 
                 MovimientoExpediente.objects.create(
                     expediente=expediente,
                     tipo_movimiento=tipo_registro_queja,
                     descripcion=f"Se registró la queja con folio {queja.folio}.",
-                    usuario=request.user
+                    usuario=request.user,
                 )
 
                 MovimientoExpediente.objects.create(
                     expediente=expediente,
                     tipo_movimiento=tipo_apertura,
                     descripcion=f"Se abrió el expediente {expediente.numero_expediente}.",
-                    usuario=request.user
+                    usuario=request.user,
                 )
 
-            return Response({
-                "mensaje": "Queja registrada correctamente.",
-                "queja_id": queja.id,
-                "expediente_id": expediente.id,
-                "numero_expediente": expediente.numero_expediente
-            }, status=status.HTTP_201_CREATED)
+            return Response(
+                {
+                    "mensaje": "Queja registrada correctamente.",
+                    "queja_id": queja.id,
+                    "expediente_id": expediente.id,
+                    "numero_expediente": expediente.numero_expediente,
+                },
+                status=status.HTTP_201_CREATED,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -139,16 +207,16 @@ class CambiarPasswordView(APIView):
     def post(self, request):
         serializer = CambiarPasswordSerializer(
             data=request.data,
-            context={'request': request}
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
 
-        request.user.set_password(serializer.validated_data['password_nueva'])
+        request.user.set_password(serializer.validated_data["password_nueva"])
         request.user.save()
 
         return Response(
-            {'mensaje': 'Contraseña actualizada correctamente.'},
-            status=status.HTTP_200_OK
+            {"mensaje": "Contraseña actualizada correctamente."},
+            status=status.HTTP_200_OK,
         )
 
 
@@ -160,14 +228,21 @@ class PasswordResetRequestView(APIView):
         serializer.is_valid(raise_exception=True)
 
         try:
-            usuario = Usuario.objects.get(username=serializer.validated_data['username'])
+            usuario = Usuario.objects.get(
+                username=serializer.validated_data["username"]
+            )
             PasswordResetRequest.objects.create(usuario=usuario)
         except Usuario.DoesNotExist:
             pass
 
         return Response(
-            {'mensaje': 'Solicitud de restablecimiento recibida. Si el usuario existe, el administrador será notificado.'},
-            status=status.HTTP_200_OK
+            {
+                "mensaje": (
+                    "Solicitud de restablecimiento recibida. "
+                    "Si el usuario existe, el administrador será notificado."
+                )
+            },
+            status=status.HTTP_200_OK,
         )
 
 
@@ -187,17 +262,26 @@ class AdministradorPasswordTemporalView(APIView):
         serializer = AdministradorPasswordTemporalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        usuario = get_object_or_404(Usuario, id=serializer.validated_data['usuario_id'])
-        password_temporal = serializer.validated_data['password_temporal']
+        usuario = get_object_or_404(
+            Usuario,
+            id=serializer.validated_data["usuario_id"],
+        )
+
+        password_temporal = serializer.validated_data["password_temporal"]
+
         usuario.set_password(password_temporal)
         usuario.save()
-        PasswordResetRequest.objects.filter(usuario=usuario, atendido=False).update(atendido=True)
+
+        PasswordResetRequest.objects.filter(
+            usuario=usuario,
+            atendido=False,
+        ).update(atendido=True)
 
         if usuario.email:
             subject = "Contraseña temporal asignada"
             message = (
                 f"Hola {usuario.username},\n\n"
-                f"Tu contraseña temporal ha sido asignada por el administrador.\n"
+                "Tu contraseña temporal ha sido asignada por el administrador.\n"
                 f"Utiliza la siguiente contraseña para ingresar: {password_temporal}\n\n"
                 "Por favor, cambia tu contraseña después de iniciar sesión."
             )
@@ -205,22 +289,34 @@ class AdministradorPasswordTemporalView(APIView):
             recipient_list = [usuario.email]
 
             try:
-                send_mail(subject, message, from_email, recipient_list, fail_silently=False)
+                send_mail(
+                    subject,
+                    message,
+                    from_email,
+                    recipient_list,
+                    fail_silently=False,
+                )
             except Exception as error:
                 return Response(
                     {
-                        'mensaje': 'Contraseña temporal asignada, pero no se pudo enviar el correo.',
-                        'error': str(error)
+                        "mensaje": (
+                            "Contraseña temporal asignada, pero no se pudo "
+                            "enviar el correo."
+                        ),
+                        "error": str(error),
                     },
-                    status=status.HTTP_200_OK
+                    status=status.HTTP_200_OK,
                 )
 
         return Response(
             {
-                'mensaje': 'Contraseña temporal asignada correctamente y enviada por correo electrónico.',
-                'usuario': UsuarioSerializer(usuario).data
+                "mensaje": (
+                    "Contraseña temporal asignada correctamente y enviada "
+                    "por correo electrónico."
+                ),
+                "usuario": UsuarioSerializer(usuario).data,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
 
@@ -237,7 +333,7 @@ class ListaQuejasView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
 
     def get(self, request):
-        quejas = QuejaDenuncia.objects.all().order_by('-fecha_ingreso')
+        quejas = QuejaDenuncia.objects.all().order_by("-fecha_ingreso")
         serializer = QuejaDenunciaSerializer(quejas, many=True)
         return Response(serializer.data)
 
@@ -259,37 +355,46 @@ class AsignarResponsableView(APIView):
         serializer.is_valid(raise_exception=True)
 
         expediente = get_object_or_404(Expediente, id=expediente_id)
-        usuario = get_object_or_404(Usuario, id=serializer.validated_data['usuario_id'])
+        usuario = get_object_or_404(
+            Usuario,
+            id=serializer.validated_data["usuario_id"],
+        )
         tipo_participacion = get_object_or_404(
             TipoParticipacion,
-            id=serializer.validated_data['tipo_participacion_id']
+            id=serializer.validated_data["tipo_participacion_id"],
         )
 
         ExpedienteUsuario.objects.filter(
             expediente=expediente,
             tipo_participacion=tipo_participacion,
-            activo=True
+            activo=True,
         ).update(activo=False)
 
         ExpedienteUsuario.objects.create(
             expediente=expediente,
             usuario=usuario,
             tipo_participacion=tipo_participacion,
-            activo=True
+            activo=True,
         )
 
-        tipo_movimiento = TipoMovimiento.objects.get(nombre__iexact='Asignación de responsable')
+        tipo_movimiento = obtener_tipo_movimiento_por_nombres(
+            "Asignación de responsable",
+            "Asignación de usuario",
+        )
 
         MovimientoExpediente.objects.create(
             expediente=expediente,
             tipo_movimiento=tipo_movimiento,
-            descripcion=f"Se asignó a {usuario.username} con participación {tipo_participacion.nombre}.",
-            usuario=request.user
+            descripcion=(
+                f"Se asignó a {usuario.username} con participación "
+                f"{tipo_participacion.nombre}."
+            ),
+            usuario=request.user,
         )
 
         return Response(
-            {'mensaje': 'Responsable asignado correctamente.'},
-            status=status.HTTP_201_CREATED
+            {"mensaje": "Responsable asignado correctamente."},
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -302,34 +407,39 @@ class ConcluirExpedienteView(APIView):
 
         expediente = get_object_or_404(Expediente, id=expediente_id)
 
-        if expediente.estado and expediente.estado.nombre.lower() == 'concluido':
+        if expediente.estado and expediente.estado.nombre.lower() == "concluido":
             return Response(
-                {'error': 'El expediente ya está concluido.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "El expediente ya está concluido."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         motivo = get_object_or_404(
             MotivoConclusion,
-            id=serializer.validated_data['motivo_conclusion_id']
+            id=serializer.validated_data["motivo_conclusion_id"],
         )
-        estado_concluido = EstadoExpediente.objects.get(nombre__iexact='concluido')
+
+        estado_concluido = EstadoExpediente.objects.get(nombre__iexact="concluido")
 
         expediente.estado = estado_concluido
         expediente.fecha_cierre = now()
         expediente.motivo_conclusion = motivo
-        expediente.observaciones_finales = serializer.validated_data['observaciones_finales']
+        expediente.observaciones_finales = serializer.validated_data[
+            "observaciones_finales"
+        ]
         expediente.save()
 
-        tipo_movimiento = TipoMovimiento.objects.get(nombre__iexact='Conclusión de expediente')
+        tipo_movimiento = obtener_tipo_movimiento_por_nombres(
+            "Conclusión de expediente",
+        )
 
         MovimientoExpediente.objects.create(
             expediente=expediente,
             tipo_movimiento=tipo_movimiento,
             descripcion=f"El expediente fue concluido por motivo: {motivo.nombre}.",
-            usuario=request.user
+            usuario=request.user,
         )
 
-        return Response({'mensaje': 'Expediente concluido correctamente.'})
+        return Response({"mensaje": "Expediente concluido correctamente."})
 
 
 class DetalleExpedienteView(APIView):
@@ -349,55 +459,76 @@ class CambiarEstadoExpedienteView(APIView):
         serializer.is_valid(raise_exception=True)
 
         expediente = get_object_or_404(Expediente, id=expediente_id)
-        estado = get_object_or_404(EstadoExpediente, id=serializer.validated_data['estado_id'])
+        estado = get_object_or_404(
+            EstadoExpediente,
+            id=serializer.validated_data["estado_id"],
+        )
 
         if expediente.estado_id == estado.id:
             return Response(
-                {'error': f'El expediente ya se encuentra en el estado "{estado.nombre}".'},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "error": (
+                        f'El expediente ya se encuentra en el estado "{estado.nombre}".'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if estado.nombre.lower() == 'concluido':
+        if estado.nombre.lower() == "concluido":
             return Response(
-                {'error': 'Para concluir el expediente debes usar la opción de concluir expediente.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "error": (
+                        "Para concluir el expediente debes usar la opción de "
+                        "concluir expediente."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         expediente.estado = estado
         expediente.save()
 
-        tipo_movimiento = TipoMovimiento.objects.get(nombre__iexact='Cambio de estado')
+        tipo_movimiento = obtener_tipo_movimiento_por_nombres(
+            "Cambio de estado",
+        )
 
         MovimientoExpediente.objects.create(
             expediente=expediente,
             tipo_movimiento=tipo_movimiento,
             descripcion=f"El expediente cambió al estado: {estado.nombre}.",
-            usuario=request.user
+            usuario=request.user,
         )
 
-        return Response({'mensaje': 'Estado actualizado correctamente.'})
+        return Response({"mensaje": "Estado actualizado correctamente."})
 
 
 class CrearDocumentoView(APIView):
     permission_classes = [IsAuthenticated, EsAnalistaOAdministrador]
 
     def post(self, request):
-        expediente = get_object_or_404(Expediente, id=request.data.get('expediente'))
+        expediente = get_object_or_404(
+            Expediente,
+            id=request.data.get("expediente"),
+        )
 
-        if expediente.estado and expediente.estado.nombre.lower() == 'concluido':
+        if expediente.estado and expediente.estado.nombre.lower() == "concluido":
             return Response(
-                {'error': 'No se pueden agregar documentos a un expediente concluido.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "error": (
+                        "No se pueden agregar documentos a un expediente concluido."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         serializer = DocumentoSerializer(data=request.data)
 
         if serializer.is_valid():
             documento = serializer.save(usuario_registra=request.user)
+
             if documento.archivo:
                 try:
                     texto = extraer_texto_pdf(documento.archivo.path)
-
                     resultado = analizar_texto(texto)
 
                     AnalisisDocumento.objects.create(
@@ -405,28 +536,33 @@ class CrearDocumentoView(APIView):
                         prioridad=resultado["prioridad"],
                         categoria=resultado["categoria"],
                         palabras_detectadas=resultado["palabras_detectadas"],
-                        requiere_atencion=resultado["requiere_atencion"]
+                        requiere_atencion=resultado["requiere_atencion"],
                     )
 
                 except Exception as error:
                     print("Error análisis:", error)
-            tipo_movimiento = TipoMovimiento.objects.get(
-                nombre__iexact='Incorporación de documento'
+
+            tipo_movimiento = obtener_tipo_movimiento_por_nombres(
+                "Incorporación de documento",
+                "Registro de documento",
             )
 
             MovimientoExpediente.objects.create(
                 expediente=documento.expediente,
                 tipo_movimiento=tipo_movimiento,
                 descripcion=f"Se incorporó el documento: {documento.nombre_documento}.",
-                usuario=request.user
+                usuario=request.user,
             )
 
             serializer_response = DocumentoSerializer(
                 documento,
-                context={'request': request}
+                context={"request": request},
             )
 
-            return Response(serializer_response.data, status=status.HTTP_201_CREATED)
+            return Response(
+                serializer_response.data,
+                status=status.HTTP_201_CREATED,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -435,9 +571,12 @@ class ListaDocumentosView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
 
     def get(self, request):
-        documentos = Documento.objects.all().order_by('-id')
-       # serializer = DocumentoSerializer(documentos, many=True)
-        serializer = DocumentoSerializer(documentos, many=True, context={'request': request})
+        documentos = Documento.objects.all().order_by("-id")
+        serializer = DocumentoSerializer(
+            documentos,
+            many=True,
+            context={"request": request},
+        )
         return Response(serializer.data)
 
 
@@ -446,7 +585,10 @@ class DetalleDocumentoView(APIView):
 
     def get(self, request, pk):
         documento = get_object_or_404(Documento, pk=pk)
-        serializer = DocumentoSerializer(documento, context={'request': request})
+        serializer = DocumentoSerializer(
+            documento,
+            context={"request": request},
+        )
         return Response(serializer.data)
 
 
@@ -454,9 +596,15 @@ class DocumentosPorExpedienteView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
 
     def get(self, request, expediente_id):
-        documentos = Documento.objects.filter(expediente_id=expediente_id).order_by('-id')
-        #serializer = DocumentoSerializer(documentos, many=True)
-        serializer = DocumentoSerializer(documentos, many=True, context={'request': request})
+        documentos = Documento.objects.filter(
+            expediente_id=expediente_id
+        ).order_by("-id")
+
+        serializer = DocumentoSerializer(
+            documentos,
+            many=True,
+            context={"request": request},
+        )
         return Response(serializer.data)
 
 
@@ -466,7 +614,7 @@ class MovimientosPorExpedienteView(APIView):
     def get(self, request, expediente_id):
         movimientos = MovimientoExpediente.objects.filter(
             expediente_id=expediente_id
-        ).order_by('-fecha')
+        ).order_by("-fecha")
 
         serializer = MovimientoExpedienteSerializer(movimientos, many=True)
         return Response(serializer.data)
@@ -479,27 +627,37 @@ class RegistrarObservacionView(APIView):
         serializer = RegistrarObservacionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        expediente = get_object_or_404(Expediente, id=serializer.validated_data['expediente_id'])
+        expediente = get_object_or_404(
+            Expediente,
+            id=serializer.validated_data["expediente_id"],
+        )
 
-        if expediente.estado and expediente.estado.nombre.lower() == 'concluido':
+        if expediente.estado and expediente.estado.nombre.lower() == "concluido":
             return Response(
-                {'error': 'No se pueden registrar observaciones en un expediente concluido.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "error": (
+                        "No se pueden registrar observaciones en un expediente concluido."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        tipo_movimiento = TipoMovimiento.objects.get(nombre__iexact='Observación')
+        tipo_movimiento = obtener_tipo_movimiento_por_nombres(
+            "Observación",
+        )
 
         movimiento = MovimientoExpediente.objects.create(
             expediente=expediente,
             tipo_movimiento=tipo_movimiento,
-            descripcion=serializer.validated_data['descripcion'],
-            usuario=request.user
+            descripcion=serializer.validated_data["descripcion"],
+            usuario=request.user,
         )
 
         return Response(
             MovimientoExpedienteSerializer(movimiento).data,
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
+
 
 class DetalleMovimientoView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
@@ -509,6 +667,7 @@ class DetalleMovimientoView(APIView):
         serializer = MovimientoExpedienteSerializer(movimiento)
         return Response(serializer.data)
 
+
 class EliminarDocumentoView(generics.DestroyAPIView):
     queryset = Documento.objects.all()
     serializer_class = DocumentoSerializer
@@ -516,7 +675,6 @@ class EliminarDocumentoView(generics.DestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         documento = self.get_object()
 
-        # borrar archivo físico
         if documento.archivo:
             documento.archivo.delete(save=False)
 
@@ -524,5 +682,5 @@ class EliminarDocumentoView(generics.DestroyAPIView):
 
         return Response(
             {"mensaje": "Documento eliminado correctamente."},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )

@@ -1,20 +1,35 @@
-# ===== BACKEND (Python/Django) =====
+# ===== BACKEND: Python / Django =====
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
-db.sqlite3
 
 # Entornos virtuales
 venv/
 env/
+.venv/
 
-# ===== FRONTEND (Node/React) =====
+# Base de datos local
+*.sqlite3
+db.sqlite3
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Archivos subidos por usuarios
+media/
+backend/media/
+backend/documentos/
+
+# ===== FRONTEND: Node / React =====
 node_modules/
 dist/
 build/
 
-# ===== GENERALES =====
-.env
+# ===== IDE / SISTEMA =====
+.idea/
+.vscode/
 .DS_Store
 Thumbs.db

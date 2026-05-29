@@ -1,7 +1,10 @@
 import axios from "axios";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api/";
+
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/api/",
+  baseURL: API_BASE_URL,
 });
 
 api.interceptors.request.use((config) => {
@@ -20,35 +23,28 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // token expirado
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry
-    ) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
         const refresh = localStorage.getItem("refresh");
 
-        const response = await axios.post(
-          "http://127.0.0.1:8000/api/refresh/",
-          {
-            refresh,
-          }
-        );
+        if (!refresh) {
+          throw new Error("No existe refresh token.");
+        }
+
+        const response = await axios.post(`${API_BASE_URL}refresh/`, {
+          refresh,
+        });
 
         const nuevoAccess = response.data.access;
 
         localStorage.setItem("access", nuevoAccess);
 
-        originalRequest.headers.Authorization =
-          `Bearer ${nuevoAccess}`;
+        originalRequest.headers.Authorization = `Bearer ${nuevoAccess}`;
 
         return api(originalRequest);
-
       } catch (refreshError) {
-
-        // refresh expirado
         localStorage.removeItem("access");
         localStorage.removeItem("refresh");
         localStorage.removeItem("perfil");
