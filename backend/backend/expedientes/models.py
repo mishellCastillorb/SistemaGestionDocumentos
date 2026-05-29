@@ -109,7 +109,7 @@ class QuejaDenuncia(models.Model):
 
     def __str__(self):
         return self.folio
-    
+
     def save(self, *args, **kwargs):
         if not self.folio:
             ultimo = QuejaDenuncia.objects.order_by('-id').first()
@@ -200,3 +200,21 @@ class AccesoExpediente(models.Model):
 
     def __str__(self):
         return f"{self.usuario} - {self.expediente} ({self.tipo_acceso})"
+
+class AnalisisDocumento(models.Model):
+    documento = models.OneToOneField(
+        Documento,
+        on_delete=models.CASCADE,
+        related_name='analisis'
+    )
+
+    prioridad = models.CharField(max_length=20)
+    categoria = models.CharField(max_length=100)
+    palabras_detectadas = models.TextField(blank=True)
+
+    requiere_atencion = models.BooleanField(default=False)
+
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Análisis - {self.documento.nombre_documento}"

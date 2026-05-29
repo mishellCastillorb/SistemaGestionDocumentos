@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from backend.expedientes.models import TipoRegistro, Area
 from backend.expedientes.models import QuejaDenuncia
+from rest_framework import generics, status
 
 from rest_framework import status
 from backend.expedientes.models import (
@@ -31,6 +32,11 @@ from .permissions import EsCapturistaOAdministrador, SoloLecturaPorRol, EsAnalis
 from django.shortcuts import get_object_or_404
 from django.utils.timezone import now
 from django.db import transaction
+from .models import AnalisisDocumento
+from .services.analizador_documentos import (
+    extraer_texto_pdf,
+    analizar_texto
+)
 
 class ListaTiposRegistroView(APIView):
     permission_classes = [IsAuthenticated]
@@ -388,7 +394,22 @@ class CrearDocumentoView(APIView):
 
         if serializer.is_valid():
             documento = serializer.save(usuario_registra=request.user)
+            if documento.archivo:
+                try:
+                    texto = extraer_texto_pdf(documento.archivo.path)
 
+                    resultado = analizar_texto(texto)
+
+                    AnalisisDocumento.objects.create(
+                        documento=documento,
+                        prioridad=resultado["prioridad"],
+                        categoria=resultado["categoria"],
+                        palabras_detectadas=resultado["palabras_detectadas"],
+                        requiere_atencion=resultado["requiere_atencion"]
+                    )
+
+                except Exception as error:
+                    print("Error análisis:", error)
             tipo_movimiento = TipoMovimiento.objects.get(
                 nombre__iexact='Incorporación de documento'
             )
@@ -480,7 +501,6 @@ class RegistrarObservacionView(APIView):
             status=status.HTTP_201_CREATED
         )
 
-
 class DetalleMovimientoView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
 
@@ -488,3 +508,21 @@ class DetalleMovimientoView(APIView):
         movimiento = get_object_or_404(MovimientoExpediente, pk=pk)
         serializer = MovimientoExpedienteSerializer(movimiento)
         return Response(serializer.data)
+
+class EliminarDocumentoView(generics.DestroyAPIView):
+    queryset = Documento.objects.all()
+    serializer_class = DocumentoSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        documento = self.get_object()
+
+        # borrar archivo físico
+        if documento.archivo:
+            documento.archivo.delete(save=False)
+
+        documento.delete()
+
+        return Response(
+            {"mensaje": "Documento eliminado correctamente."},
+            status=status.HTTP_200_OK
+        )

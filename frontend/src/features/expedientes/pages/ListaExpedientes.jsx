@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 function ListaExpedientes() {
   const [expedientes, setExpedientes] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -20,15 +21,48 @@ function ListaExpedientes() {
     }
   };
 
+  // 🔍 FILTRO
+  const expedientesFiltrados = expedientes.filter(
+    (exp) =>
+      exp.numero_expediente
+        ?.toLowerCase()
+        .includes(busqueda.toLowerCase()) ||
+      exp.estado_nombre
+        ?.toLowerCase()
+        .includes(busqueda.toLowerCase())
+  );
+
   return (
     <div className="container mt-5">
-      <h2 className="mb-4">Lista de expedientes</h2>
+      {/* HEADER */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="mb-0">Lista de expedientes</h2>
+      </div>
 
-      {error && <p className="text-danger">{error}</p>}
+      {/* BUSCADOR */}
+      <div className="input-group mb-3">
 
+
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Buscar expediente..."
+          value={busqueda}
+          onChange={(e) =>
+            setBusqueda(e.target.value)
+          }
+        />
+      </div>
+
+      {/* ERROR */}
+      {error && (
+        <p className="text-danger">{error}</p>
+      )}
+
+      {/* TABLA */}
       <div className="card shadow p-3">
-        <table className="table table-striped">
-          <thead>
+        <table className="table table-hover align-middle">
+          <thead className="table-light">
             <tr>
               <th>Número</th>
               <th>Estado</th>
@@ -36,13 +70,27 @@ function ListaExpedientes() {
               <th>Acciones</th>
             </tr>
           </thead>
+
           <tbody>
-            {expedientes.length > 0 ? (
-              expedientes.map((exp) => (
+            {expedientesFiltrados.length > 0 ? (
+              expedientesFiltrados.map((exp) => (
                 <tr key={exp.id}>
-                  <td>{exp.numero_expediente}</td>
-                  <td>{exp.estado_nombre}</td>
-                  <td>{exp.fecha_apertura}</td>
+                  <td>
+                    {exp.numero_expediente}
+                  </td>
+
+                  <td>
+                    <span className="badge bg-warning text-dark">
+                      {exp.estado_nombre}
+                    </span>
+                  </td>
+
+                  <td>
+                    {new Date(
+                      exp.fecha_apertura
+                    ).toLocaleDateString("es-MX")}
+                  </td>
+
                   <td>
                     <Link
                       to={`/expedientes/${exp.id}`}
@@ -55,7 +103,10 @@ function ListaExpedientes() {
               ))
             ) : (
               <tr>
-                <td colSpan="4" className="text-center">
+                <td
+                  colSpan="4"
+                  className="text-center text-muted"
+                >
                   No hay expedientes.
                 </td>
               </tr>

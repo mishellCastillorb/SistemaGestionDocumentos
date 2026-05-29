@@ -1,18 +1,70 @@
 from rest_framework import serializers
 from backend.expedientes.models import QuejaDenuncia, Expediente, Documento, MovimientoExpediente, PasswordResetRequest
 from django.contrib.auth import authenticate
-from backend.expedientes.models import Usuario
+from backend.expedientes.models import Usuario, AnalisisDocumento, QuejaDenuncia, Expediente, Documento, MovimientoExpediente, PasswordResetRequest
 
 
 class QuejaDenunciaSerializer(serializers.ModelSerializer):
+    tipo_registro_nombre = serializers.StringRelatedField(
+        source='tipo_registro',
+        read_only=True
+    )
+
+    area_involucrada_nombre = serializers.StringRelatedField(
+        source='area_involucrada',
+        read_only=True
+    )
+
+    usuario_registra_nombre = serializers.StringRelatedField(
+        source='usuario_registra',
+        read_only=True
+    )
+    expediente_id = serializers.SerializerMethodField()
+
+    expediente_numero = serializers.SerializerMethodField()
+
+    def get_expediente_id(self, obj):
+        try:
+            return obj.expediente.id
+        except Expediente.DoesNotExist:
+            return None
+
+    def get_expediente_numero(self, obj):
+        try:
+            return obj.expediente.numero_expediente
+        except Expediente.DoesNotExist:
+            return None
+
     class Meta:
         model = QuejaDenuncia
-        fields = '__all__'
-        read_only_fields = ['usuario_registra', 'fecha_ingreso']
+        fields = [
+            'id',
+            'folio',
+            'tipo_registro',
+            'tipo_registro_nombre',
+            'fecha_ingreso',
+            'asunto',
+            'descripcion',
+            'nombre_servidor_publico',
+            'cargo_servidor_publico',
+            'area_involucrada',
+            'area_involucrada_nombre',
+            'observaciones',
+            'usuario_registra',
+            'usuario_registra_nombre',
+            "expediente_id",
+            "expediente_numero",
+        ]
+        read_only_fields = [
+            'usuario_registra',
+            'fecha_ingreso',
+        ]
 
     def validate_descripcion(self, value):
         if len(value.strip()) < 10:
-            raise serializers.ValidationError("La descripción debe tener al menos 10 caracteres.")
+            raise serializers.ValidationError(
+                "La descripción debe tener al menos 10 caracteres."
+            )
         return value
 
 class ExpedienteSerializer(serializers.ModelSerializer):
@@ -102,7 +154,6 @@ class AsignarResponsableSerializer(serializers.Serializer):
     usuario_id = serializers.IntegerField()
     tipo_participacion_id = serializers.IntegerField()
 
-
 class ConcluirExpedienteSerializer(serializers.Serializer):
     motivo_conclusion_id = serializers.IntegerField()
     observaciones_finales = serializers.CharField()
@@ -110,17 +161,24 @@ class ConcluirExpedienteSerializer(serializers.Serializer):
 class CambiarEstadoExpedienteSerializer(serializers.Serializer):
     estado_id = serializers.IntegerField()
 
+class AnalisisDocumentoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnalisisDocumento
+        fields = '__all__'
+
+
 class DocumentoSerializer(serializers.ModelSerializer):
     tipo_documento_nombre = serializers.StringRelatedField(source='tipo_documento', read_only=True)
     usuario_registra_nombre = serializers.StringRelatedField(source='usuario_registra', read_only=True)
     archivo_url = serializers.SerializerMethodField()
+    analisis = AnalisisDocumentoSerializer(read_only=True)
 
     class Meta:
         model = Documento
         fields = [
             'id', 'expediente', 'tipo_documento', 'tipo_documento_nombre',
             'nombre_documento', 'descripcion', 'archivo', 'archivo_url',
-            'usuario_registra', 'usuario_registra_nombre'
+            'usuario_registra', 'usuario_registra_nombre', 'analisis'
         ]
         read_only_fields = ['usuario_registra']
 
@@ -155,3 +213,4 @@ class MovimientoExpedienteSerializer(serializers.ModelSerializer):
         model = MovimientoExpediente
         fields = '__all__'
         read_only_fields = ['fecha', 'usuario']
+

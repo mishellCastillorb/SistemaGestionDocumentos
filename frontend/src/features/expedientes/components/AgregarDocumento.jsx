@@ -113,13 +113,12 @@ function AgregarDocumento({ expedienteId, onDocumentoGuardado }) {
                           return;
                       }
 
-                      if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-                          setError("Solo se permiten archivos PDF.");
-                          setArchivo(null);
-                          e.target.value = "";
-                          return;
-                      }
-
+                      if (file.type !== "application/pdf" || !file.name.toLowerCase().endsWith(".pdf")) {
+                      setError("Solo se permiten archivos PDF.");
+                      setArchivo(null);
+                      e.target.value = "";
+                      return;
+                    }
                       setError("");
                       setArchivo(file);
                   }}

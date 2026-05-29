@@ -1,0 +1,94 @@
+body {
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: #eef6fb;
+  color: #1f2937;
+}
+
+.page-title {
+  font-weight: 800;
+  color: #123c69;
+  margin-bottom: 4px;
+}
+
+.page-subtitle {
+  color: #6b7280;
+  margin-bottom: 24px;
+}
+
+.card {
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+}
+
+.btn {
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table thead th {
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.table tbody tr:hover {
+  background: #f1f7ff;
+}
+
+.form-control,
+.form-select {
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 7px 10px;
+}
+.timeline-estados {
+  position: relative;
+  padding-left: 24px;
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 32px;
+  padding-bottom: 28px;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -3px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  background: #0d6efd;
+  border-radius: 50%;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
+  z-index: 2;
+}
+
+.timeline-line {
+  position: absolute;
+  left: 4px;
+  top: 20px;
+  width: 2px;
+  height: calc(100% - 8px);
+  background: #cbd5e1;
+  z-index: 1;
+}
+
+.timeline-content {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 16px 18px;
+  border: 1px solid #e5e7eb;
+}

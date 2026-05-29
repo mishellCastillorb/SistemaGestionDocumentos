@@ -23,9 +23,10 @@ from .views import (
     MovimientosPorExpedienteView,
     RegistrarObservacionView,
     DetalleMovimientoView,
-    SiguienteFolioView
+    SiguienteFolioView,
+    EliminarDocumentoView
 )
-
+from .views_dashboard import DashboardResumenView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
@@ -61,4 +62,15 @@ urlpatterns = [
 
     path('catalogos/tipos-registro/', ListaTiposRegistroView.as_view()),
     path('catalogos/areas/', ListaAreasView.as_view()),
+
+    path(
+        'documentos/<int:pk>/eliminar/',
+        EliminarDocumentoView.as_view(),
+        name='eliminar_documento'
+    ),
+
+    path(
+        "dashboard/resumen/",
+        DashboardResumenView.as_view()
+    ),
 ]

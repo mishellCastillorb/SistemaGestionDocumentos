@@ -1,6 +1,15 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import authService from "../../../services/authService";
 
+import {
+  FaHome,
+  FaFileAlt,
+  FaFolderOpen,
+  FaKey,
+  FaUser,
+  FaSignOutAlt,
+} from "react-icons/fa";
+
 function Sidebar({ abierto, setAbierto }) {
   const perfil = authService.getPerfilGuardado();
   const navigate = useNavigate();
@@ -14,13 +23,45 @@ function Sidebar({ abierto, setAbierto }) {
   };
 
   const menuItems = [
-    { label: "Dashboard", path: "/dashboard", roles: ["administrador", "capturista", "analista", "consulta"] },
-    { label: "Quejas", path: "/quejas", roles: ["administrador", "capturista", "analista", "consulta"] },
-    { label: "Expedientes", path: "/expedientes", roles: ["administrador", "capturista", "analista", "consulta"] },
-    { label: "Contraseñas temporales", path: "/admin/usuarios-temporales", roles: ["administrador"] },
+    {
+      label: "Dashboard",
+      path: "/dashboard",
+      icon: <FaHome />,
+      roles: ["administrador", "capturista", "analista", "consulta"],
+    },
+
+    {
+      label: "Quejas",
+      path: "/quejas",
+      icon: <FaFileAlt />,
+      roles: ["administrador", "capturista", "analista", "consulta"],
+    },
+
+    {
+      label: "Expedientes",
+      path: "/expedientes",
+      icon: <FaFolderOpen />,
+      roles: ["administrador", "capturista", "analista", "consulta"],
+    },
+
+    {
+      label: "Contraseñas temporales",
+      path: "/admin/usuarios-temporales",
+      icon: <FaKey />,
+      roles: ["administrador"],
+    },
+
+    {
+      label: "Perfil",
+      path: "/perfil",
+      icon: <FaUser />,
+      roles: ["administrador", "capturista", "analista", "consulta"],
+    },
   ];
 
-  const itemsFiltrados = menuItems.filter((item) => item.roles.includes(rol));
+  const itemsFiltrados = menuItems.filter((item) =>
+    item.roles.includes(rol)
+  );
 
   return (
     <div
@@ -33,11 +74,14 @@ function Sidebar({ abierto, setAbierto }) {
         overflow: "hidden",
       }}
     >
+      {/* HEADER */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         {abierto && (
           <div>
             <h4 className="fw-bold mb-0">SGQD</h4>
-            <small className="text-light">Sistema de Gestión</small>
+            <small className="text-light">
+              Sistema de Gestión
+            </small>
           </div>
         )}
 
@@ -49,9 +93,10 @@ function Sidebar({ abierto, setAbierto }) {
         </button>
       </div>
 
+      {/* MENÚ */}
       <nav className="nav flex-column gap-2">
         {itemsFiltrados.map((item) => {
-          const activo = location.pathname === item.path;
+          const activo = location.pathname.startsWith(item.path);
 
           return (
             <Link
@@ -60,24 +105,49 @@ function Sidebar({ abierto, setAbierto }) {
               className="text-decoration-none"
             >
               <div
-                className="px-3 py-2 rounded text-nowrap"
+                className="px-3 py-2 rounded"
                 style={{
-                  backgroundColor: activo ? "#ffffff" : "transparent",
-                  color: activo ? "#183b56" : "#ffffff",
+                  backgroundColor: activo
+                    ? "#ffffff"
+                    : "transparent",
+
+                  color: activo
+                    ? "#183b56"
+                    : "#ffffff",
+
                   fontWeight: activo ? "600" : "400",
+
                   transition: "0.2s",
+
+                  cursor: "pointer",
                 }}
               >
-                {abierto ? item.label : item.label.charAt(0)}
+                <div className="d-flex align-items-center gap-3">
+                  <span style={{ fontSize: "18px" }}>
+                    {item.icon}
+                  </span>
+
+                  {abierto && (
+                    <span className="text-nowrap">
+                      {item.label}
+                    </span>
+                  )}
+                </div>
               </div>
             </Link>
           );
         })}
       </nav>
 
+      {/* BOTON CERRAR SESIÓN */}
       <div className="mt-auto pt-4">
-        <button className="btn btn-outline-light w-100" onClick={cerrarSesion}>
-          {abierto ? "Cerrar sesión" : "⎋"}
+        <button
+          className="btn btn-outline-light w-100 d-flex align-items-center justify-content-center gap-2"
+          onClick={cerrarSesion}
+        >
+          <FaSignOutAlt />
+
+          {abierto && <span>Cerrar sesión</span>}
         </button>
       </div>
     </div>
