@@ -95,7 +95,7 @@ class PasswordResetRequest(models.Model):
 # QUEJAS
 
 class QuejaDenuncia(models.Model):
-    folio = models.CharField(max_length=30, unique=True)
+    folio = models.CharField(max_length=15, unique=True)
     tipo_registro = models.ForeignKey(TipoRegistro, on_delete=models.PROTECT)
     fecha_ingreso = models.DateTimeField(auto_now_add=True)
     asunto = models.CharField(max_length=200)
@@ -114,17 +114,24 @@ class QuejaDenuncia(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.folio:
-            ultimo = QuejaDenuncia.objects.order_by("-id").first()
+            folios_numericos = [
+                int(queja.folio)
+                for queja in QuejaDenuncia.objects.all()
+                if queja.folio and queja.folio.isdigit()
+            ]
 
-            if ultimo:
-                nuevo_folio = int(ultimo.folio) + 1
-            else:
-                nuevo_folio = 1
+            nuevo_folio = max(folios_numericos, default=0) + 1
+
+            if len(str(nuevo_folio)) > 15:
+                raise ValueError(
+                    "Se alcanzó el límite máximo de folios de 15 caracteres."
+                )
 
             self.folio = str(nuevo_folio)
 
-        super().save(*args, **kwargs)
+        self.folio = self.folio.strip()
 
+        super().save(*args, **kwargs)
 
 # EXPEDIENTES
 

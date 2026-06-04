@@ -116,15 +116,72 @@ class SiguienteFolioView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        ultimo = QuejaDenuncia.objects.order_by("-id").first()
+        folios_numericos = [
+            int(queja.folio)
+            for queja in QuejaDenuncia.objects.all()
+            if queja.folio and queja.folio.isdigit()
+        ]
 
-        if ultimo:
-            siguiente = int(ultimo.folio) + 1
-        else:
-            siguiente = 1
+        siguiente = max(folios_numericos, default=0) + 1
+
+        if len(str(siguiente)) > 15:
+            return Response(
+                {
+                    "error": (
+                        "Se alcanzó el límite máximo de folios de 15 caracteres."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response({"folio": str(siguiente)})
+    
+class ValidarFolioQuejaView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def get(self, request):
+        folio = request.query_params.get("folio", "").strip()
+
+        if not folio:
+            return Response(
+                {
+                    "folio": folio,
+                    "disponible": False,
+                    "mensaje": "El folio es obligatorio.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(folio) > 15:
+            return Response(
+                {
+                    "folio": folio,
+                    "disponible": False,
+                    "mensaje": "El folio no puede tener más de 15 caracteres.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        existe = QuejaDenuncia.objects.filter(folio=folio).exists()
+
+        if existe:
+            return Response(
+                {
+                    "folio": folio,
+                    "disponible": False,
+                    "mensaje": "Este folio ya está registrado.",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {
+                "folio": folio,
+                "disponible": True,
+                "mensaje": "Folio disponible.",
+            },
+            status=status.HTTP_200_OK,
+        )
 
 class ListaExpedientesView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]

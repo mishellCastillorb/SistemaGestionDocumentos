@@ -1,18 +1,31 @@
 import api from "../api/axios";
 
 const quejaService = {
+  async crearQueja(datos) {
+    const response = await api.post("quejas/", datos);
+    return response.data;
+  },
+
   async listarQuejas() {
     const response = await api.get("quejas/lista/");
     return response.data;
   },
 
-  async crearQueja(data) {
-    const response = await api.post("quejas/", data);
+  async obtenerDetalleQueja(id) {
+    const response = await api.get(`quejas/${id}/`);
     return response.data;
   },
 
-  async obtenerDetalle(id) {
-    const response = await api.get(`quejas/${id}/`);
+  async obtenerSiguienteFolio() {
+    const response = await api.get("quejas/siguiente-folio/");
+    return response.data;
+  },
+
+  async validarFolio(folio) {
+    const response = await api.get(
+      `quejas/validar-folio/?folio=${encodeURIComponent(folio)}`
+    );
+
     return response.data;
   },
 
@@ -25,11 +38,6 @@ const quejaService = {
     const response = await api.get("catalogos/areas/");
     return response.data;
   },
-
-  async obtenerSiguienteFolio() {
-    const response = await api.get("quejas/siguiente-folio/");
-    return response.data;
-  }
 };
 
 export default quejaService;

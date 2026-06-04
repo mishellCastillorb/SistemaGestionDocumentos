@@ -26,6 +26,7 @@ from .views import (
     RegistrarObservacionView,
     DetalleMovimientoView,
     SiguienteFolioView,
+    ValidarFolioQuejaView,
     EliminarDocumentoView,
     AceptarAnalisisDocumentoView,
     RechazarAnalisisDocumentoView,
@@ -59,6 +60,11 @@ urlpatterns = [
     path("quejas/lista/", ListaQuejasView.as_view(), name="lista_quejas"),
     path("quejas/<int:pk>/", DetalleQuejaView.as_view(), name="detalle_queja"),
     path("quejas/siguiente-folio/", SiguienteFolioView.as_view(), name="siguiente_folio"),
+    path(
+    "quejas/validar-folio/",
+    ValidarFolioQuejaView.as_view(),
+    name="validar_folio_queja",
+),
 
     path("login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("refresh/", TokenRefreshView.as_view(), name="token_refresh"),

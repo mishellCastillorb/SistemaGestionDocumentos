@@ -68,6 +68,29 @@ class QuejaDenunciaSerializer(serializers.ModelSerializer):
             "fecha_ingreso",
         ]
 
+    def validate_folio(self, value):
+        folio = str(value).strip()
+
+        if not folio:
+            raise serializers.ValidationError("El folio es obligatorio.")
+
+        if len(folio) > 15:
+            raise serializers.ValidationError(
+                "El folio no puede tener más de 15 caracteres."
+            )
+
+        existe_folio = QuejaDenuncia.objects.filter(folio=folio).exists()
+
+        if self.instance:
+            existe_folio = QuejaDenuncia.objects.filter(
+                folio=folio
+            ).exclude(id=self.instance.id).exists()
+
+        if existe_folio:
+            raise serializers.ValidationError("Este folio ya está registrado.")
+
+        return folio
+
     def validate_descripcion(self, value):
         if len(value.strip()) < 10:
             raise serializers.ValidationError(
