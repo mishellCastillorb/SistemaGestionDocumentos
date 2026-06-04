@@ -433,7 +433,7 @@ const diasRestantes = expediente.fecha_limite_estado
               </div>
               <div className="col-md-6">
                   <div className="bg-light rounded p-3 h-100">
-                      <small className="text-muted">Fecha límite del estado</small>
+                      <small className="text-muted">Inactivo disponible a partir de</small>
 
                       <h6 className="mb-0">
                           {expediente.fecha_limite_estado
