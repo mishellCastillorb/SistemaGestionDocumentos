@@ -10,7 +10,6 @@ function CambiarEstadoExpediente({ expedienteId, expedienteEstado, onEstadoActua
     { id: 1, nombre: "Registrado" },
     { id: 2, nombre: "En revisión" },
     { id: 3, nombre: "En investigación" },
-    { id: 4, nombre: "Activo" },
     { id: 5, nombre: "Inactivo" },
     { id: 6, nombre: "Concluido" },
   ];

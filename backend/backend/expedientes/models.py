@@ -136,6 +136,10 @@ class Expediente(models.Model):
     fecha_apertura = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
+    #fecha limite de registrado = 72 horas
+    #en investigacion = 30 dias
+    fecha_limite_estado = models.DateTimeField(null=True, blank=True)
+
     fecha_cierre = models.DateTimeField(null=True, blank=True)
 
     motivo_conclusion = models.ForeignKey(
