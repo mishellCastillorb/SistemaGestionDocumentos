@@ -95,6 +95,33 @@ def obtener_tipo_movimiento_por_nombres(*nombres):
             )
         }
     )
+    
+def normalizar_estado(nombre_estado):
+    if not nombre_estado:
+        return ""
+
+    reemplazos = {
+        "á": "a",
+        "é": "e",
+        "í": "i",
+        "ó": "o",
+        "ú": "u",
+    }
+
+    nombre = nombre_estado.strip().lower()
+
+    for acento, sin_acento in reemplazos.items():
+        nombre = nombre.replace(acento, sin_acento)
+
+    return nombre
+
+
+def obtener_fecha_minima_inactivacion(expediente):
+    return expediente.fecha_apertura + timedelta(hours=72)
+
+
+def expediente_puede_inactivarse(expediente):
+    return now() >= obtener_fecha_minima_inactivacion(expediente)
 
 def marcar_expedientes_vencidos_como_inactivos():
     estado_inactivo = EstadoExpediente.objects.get(nombre__iexact="inactivo")
@@ -221,8 +248,6 @@ class ListaExpedientesView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
 
     def get(self, request):
-        marcar_expedientes_vencidos_como_inactivos()
-
         expedientes = Expediente.objects.all()
         serializer = ExpedienteSerializer(expedientes, many=True)
         return Response(serializer.data)
@@ -441,6 +466,14 @@ class DetalleQuejaView(APIView):
         queja = get_object_or_404(QuejaDenuncia, pk=pk)
         serializer = QuejaDenunciaSerializer(queja)
         return Response(serializer.data)
+    
+class DetalleExpedienteView(APIView):
+    permission_classes = [IsAuthenticated, SoloLecturaPorRol]
+
+    def get(self, request, pk):
+        expediente = get_object_or_404(Expediente, pk=pk)
+        serializer = ExpedienteSerializer(expediente)
+        return Response(serializer.data)
 
 
 class AsignarResponsableView(APIView):
@@ -557,45 +590,115 @@ class CambiarEstadoExpedienteView(APIView):
         serializer.is_valid(raise_exception=True)
 
         expediente = get_object_or_404(Expediente, id=expediente_id)
-        estado = get_object_or_404(
+        estado_nuevo = get_object_or_404(
             EstadoExpediente,
             id=serializer.validated_data["estado_id"],
         )
 
-        if expediente.estado_id == estado.id:
+        estado_actual_nombre = expediente.estado.nombre if expediente.estado else ""
+        estado_nuevo_nombre = estado_nuevo.nombre
+
+        estado_actual = normalizar_estado(estado_actual_nombre)
+        estado_destino = normalizar_estado(estado_nuevo_nombre)
+
+        if expediente.estado_id == estado_nuevo.id:
             return Response(
                 {
                     "error": (
-                        f'El expediente ya se encuentra en el estado "{estado.nombre}".'
+                        f'El expediente ya se encuentra en el estado '
+                        f'"{estado_nuevo.nombre}".'
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if estado.nombre.lower() == "concluido":
+        if estado_actual == "concluido":
             return Response(
                 {
                     "error": (
-                        "Para concluir el expediente debes usar la opción de "
-                        "concluir expediente."
+                        "No se puede cambiar el estado de un expediente concluido."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        expediente.estado = estado
+        if estado_destino == "concluido":
+            return Response(
+                {
+                    "error": (
+                        "Para concluir el expediente debes usar la opción "
+                        "Concluir expediente."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        plazos = {
-            "registrado": timedelta(hours=72),
-            "en revisión": timedelta(days=7),
-            "en investigación": timedelta(days=30),
-        }
+        if estado_destino == "registrado":
+            return Response(
+                {
+                    "error": (
+                        "No se puede regresar un expediente al estado Registrado."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        if estado.nombre.lower() in plazos:
-            expediente.fecha_limite_estado = now() + plazos[estado.nombre.lower()]
-        else:
+        if estado_actual == "registrado" and estado_destino not in [
+            "en revision",
+            "en investigacion",
+            "inactivo",
+        ]:
+            return Response(
+                {
+                    "error": (
+                        "Desde Registrado solo se puede cambiar a En revisión, "
+                        "En investigación o Inactivo cuando hayan pasado 72 horas."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if estado_actual == "inactivo" and estado_destino not in [
+            "en revision",
+            "en investigacion",
+        ]:
+            return Response(
+                {
+                    "error": (
+                        "Para volver a activar un expediente inactivo, solo se "
+                        "puede cambiar a En revisión o En investigación."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if estado_destino == "inactivo" and not expediente_puede_inactivarse(
+            expediente
+        ):
+            fecha_minima = obtener_fecha_minima_inactivacion(expediente)
+
+            return Response(
+                {
+                    "error": (
+                        "No se puede marcar el expediente como Inactivo antes "
+                        "de que transcurran 72 horas desde su apertura. "
+                        f"Podrá inactivarse a partir de: "
+                        f"{fecha_minima.strftime('%d/%m/%Y %H:%M')}."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        expediente.estado = estado_nuevo
+
+        if estado_destino == "inactivo":
             expediente.fecha_limite_estado = None
-
+        elif expediente.fecha_limite_estado is None and not expediente_puede_inactivarse(
+            expediente
+        ):
+            expediente.fecha_limite_estado = obtener_fecha_minima_inactivacion(
+                expediente
+            )
 
         expediente.save()
 
@@ -606,12 +709,14 @@ class CambiarEstadoExpedienteView(APIView):
         MovimientoExpediente.objects.create(
             expediente=expediente,
             tipo_movimiento=tipo_movimiento,
-            descripcion=f"El expediente cambió al estado: {estado.nombre}.",
+            descripcion=(
+                f"El expediente cambió de {estado_actual_nombre} "
+                f"a {estado_nuevo.nombre}."
+            ),
             usuario=request.user,
         )
 
         return Response({"mensaje": "Estado actualizado correctamente."})
-
 
 class CrearDocumentoView(APIView):
     permission_classes = [IsAuthenticated, EsAnalistaOAdministrador]
