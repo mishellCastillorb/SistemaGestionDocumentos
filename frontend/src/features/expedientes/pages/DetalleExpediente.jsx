@@ -500,14 +500,14 @@ const diasRestantes = expediente.fecha_limite_estado
             onEstadoActualizado={cargarDatos}
           />
 
-          <div className="mt-4">
-            <button
-              className="btn btn-danger"
-              onClick={() => setMostrarModalConclusion(true)}
-            >
-              Concluir expediente
-            </button>
-          </div>
+        {/*  <div className="mt-4">*/}
+        {/*    <button*/}
+        {/*      className="btn btn-danger"*/}
+        {/*      onClick={() => setMostrarModalConclusion(true)}*/}
+        {/*    >*/}
+        {/*      Concluir expediente*/}
+        {/*    </button>*/}
+        {/*  </div>*/}
         </>
       )}
 
@@ -932,10 +932,20 @@ const diasRestantes = expediente.fecha_limite_estado
         )}
       </div>
 
-      {(rol === "administrador" || rol === "analista") && !estaConcluido && (
-        <AgregarDocumento expedienteId={id} onDocumentoGuardado={cargarDatos} />
-      )}
+     {(rol === "administrador" || rol === "analista") && !estaConcluido && (
+  <>
+    <AgregarDocumento expedienteId={id} onDocumentoGuardado={cargarDatos} />
 
+    <div className="mt-3 mb-4 d-flex justify-content-end">
+      <button
+         className="btn btn-danger btn-lg px-4 py-2 rounded-pill shadow"
+        onClick={() => setMostrarModalConclusion(true)}
+      >
+        Concluir expediente
+      </button>
+    </div>
+  </>
+)}
       <div className="card shadow p-4 mt-4">
         <h3 className="mb-3">Movimientos</h3>
 
