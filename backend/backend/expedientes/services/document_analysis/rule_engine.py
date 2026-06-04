@@ -257,7 +257,7 @@ def generar_justificacion(
 
     if total_coincidencias == 0:
         return (
-            "No se detectaron palabras clave asociadas a una queja o denuncia grave. "
+            "No se detectaron palabras clave asociadas a una queja o denunca grave. "
             "Por ello se sugiere una clasificación general de baja prioridad."
         )
 

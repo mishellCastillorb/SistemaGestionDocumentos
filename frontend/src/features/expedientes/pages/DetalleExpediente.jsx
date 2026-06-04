@@ -369,6 +369,12 @@ function DetalleExpediente() {
     expediente.estado_nombre?.toLowerCase() === "concluido";
 
   const estadosTimeline = obtenerEstadosTimeline(movimientos, expediente);
+const diasRestantes = expediente.fecha_limite_estado
+  ? Math.ceil(
+      (new Date(expediente.fecha_limite_estado) - new Date()) /
+        (1000 * 60 * 60 * 24)
+    )
+  : null;
 
   return (
     <div className="container mt-5">
@@ -381,60 +387,88 @@ function DetalleExpediente() {
           </Link>
         </div>
 
-        <div className="row g-3">
-          <div className="col-md-6">
-            <div className="bg-light rounded p-3 h-100">
-              <small className="text-muted">Número de expediente</small>
+          <div className="row g-3">
+              <div className="col-md-6">
+                  <div className="bg-light rounded p-3 h-100">
+                      <small className="text-muted">Número de expediente</small>
 
-              <h5 className="mb-0 fw-bold">
-                {expediente.numero_expediente}
-              </h5>
-            </div>
-          </div>
+                      <h5 className="mb-0 fw-bold">
+                          {expediente.numero_expediente}
+                      </h5>
+                  </div>
+              </div>
 
-          <div className="col-md-6">
-            <div className="bg-light rounded p-3 h-100">
-              <small className="text-muted">Estado</small>
+              <div className="col-md-6">
+                  <div className="bg-light rounded p-3 h-100">
+                      <small className="text-muted">Estado</small>
 
-              <br />
+                      <br/>
 
-              <span className="badge bg-warning text-dark">
+                      <span className="badge bg-warning text-dark">
                 {expediente.estado_nombre || "Sin estado"}
               </span>
-            </div>
+                  </div>
+              </div>
+
+              <div className="col-md-6">
+                  <div className="bg-light rounded p-3 h-100">
+                      <small className="text-muted">Fecha de apertura</small>
+
+                      <h6 className="mb-0">
+                          {formatearFecha(expediente.fecha_apertura)}
+                      </h6>
+                  </div>
+              </div>
+
+              <div className="col-md-6">
+                  <div className="bg-light rounded p-3 h-100">
+                      <small className="text-muted">Fecha de cierre</small>
+
+                      <h6 className="mb-0">
+                          {expediente.fecha_cierre
+                              ? formatearFecha(expediente.fecha_cierre)
+                              : "No concluido"}
+                      </h6>
+                  </div>
+              </div>
+              <div className="col-md-6">
+                  <div className="bg-light rounded p-3 h-100">
+                      <small className="text-muted">Fecha límite del estado</small>
+
+                      <h6 className="mb-0">
+                          {expediente.fecha_limite_estado
+                              ? formatearFecha(expediente.fecha_limite_estado)
+                              : "Sin límite"}
+                      </h6>
+                  </div>
+              </div>
+              {!estaConcluido && diasRestantes !== null && (
+  <div className="col-md-6">
+    <div className="bg-light rounded p-3 h-100">
+      <small className="text-muted">Tiempo restante</small>
+
+      <h6
+        className={`mb-0 ${
+          diasRestantes <= 3 ? "text-danger" : "text-success"
+        }`}
+      >
+        {diasRestantes > 0
+          ? `${diasRestantes} día(s)`
+          : `Vencido hace ${Math.abs(diasRestantes)} día(s)`}
+      </h6>
+    </div>
+  </div>
+)}
           </div>
-
-          <div className="col-md-6">
-            <div className="bg-light rounded p-3 h-100">
-              <small className="text-muted">Fecha de apertura</small>
-
-              <h6 className="mb-0">
-                {formatearFecha(expediente.fecha_apertura)}
-              </h6>
-            </div>
-          </div>
-
-          <div className="col-md-6">
-            <div className="bg-light rounded p-3 h-100">
-              <small className="text-muted">Fecha de cierre</small>
-
-              <h6 className="mb-0">
-                {expediente.fecha_cierre
-                  ? formatearFecha(expediente.fecha_cierre)
-                  : "No concluido"}
-              </h6>
-            </div>
-          </div>
-        </div>
       </div>
 
-      <div className="card shadow p-4 mt-4 mb-4">
-        <h3 className="mb-4">Línea del tiempo del expediente</h3>
+        <div className="card shadow p-4 mt-4 mb-4">
+            <h3 className="mb-4">Línea del tiempo del expediente</h3>
 
-        <div className="timeline-estados">
-          {estadosTimeline.map((item, index) => (
-            <div key={index} className="timeline-item">
-              <div className="timeline-dot"></div>
+            <div className="timeline-estados">
+                {estadosTimeline.map((item, index) => (
+                    <div key={index} className="timeline-item">
+                        <div className="timeline-dot"></div>
 
               {index !== estadosTimeline.length - 1 && (
                 <div className="timeline-line"></div>

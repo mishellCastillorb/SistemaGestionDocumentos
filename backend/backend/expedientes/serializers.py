@@ -116,6 +116,7 @@ class ExpedienteSerializer(serializers.ModelSerializer):
             "estado_nombre",
             "fecha_apertura",
             "fecha_actualizacion",
+            "fecha_limite_estado",
             "fecha_cierre",
             "motivo_conclusion",
             "observaciones_finales",

@@ -10,6 +10,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from datetime import timedelta
+from django.utils.timezone import now
+
 
 from backend.expedientes.models import (
     AnalisisDocumento,
@@ -93,7 +96,38 @@ def obtener_tipo_movimiento_por_nombres(*nombres):
         }
     )
 
+def marcar_expedientes_vencidos_como_inactivos():
+    estado_inactivo = EstadoExpediente.objects.get(nombre__iexact="inactivo")
 
+    expedientes_vencidos = (
+        Expediente.objects.filter(
+            fecha_limite_estado__isnull=False,
+            fecha_limite_estado__lt=now(),
+        )
+        .exclude(estado__nombre__iexact="inactivo")
+        .exclude(estado__nombre__iexact="concluido")
+    )
+
+    tipo_movimiento = obtener_tipo_movimiento_por_nombres(
+        "Cambio de estado",
+    )
+
+    for expediente in expedientes_vencidos:
+        estado_anterior = expediente.estado.nombre
+
+        expediente.estado = estado_inactivo
+        expediente.fecha_limite_estado = None
+        expediente.save()
+
+        MovimientoExpediente.objects.create(
+            expediente=expediente,
+            tipo_movimiento=tipo_movimiento,
+            descripcion=(
+                f"El expediente pasó automáticamente de {estado_anterior} "
+                "a Inactivo por exceder el tiempo límite de atención."
+            ),
+            usuario=expediente.queja.usuario_registra,
+        )
 class ListaTiposRegistroView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -187,10 +221,11 @@ class ListaExpedientesView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
 
     def get(self, request):
+        marcar_expedientes_vencidos_como_inactivos()
+
         expedientes = Expediente.objects.all()
         serializer = ExpedienteSerializer(expedientes, many=True)
         return Response(serializer.data)
-
 
 class CrearQuejaView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -210,6 +245,7 @@ class CrearQuejaView(APIView):
                 expediente = Expediente.objects.create(
                     queja=queja,
                     estado=estado_inicial,
+                    fecha_limite_estado = now() + timedelta(hours=72),
                 )
 
                 expediente.numero_expediente = f"EXP-{now().year}-{expediente.id:04d}"
@@ -482,6 +518,7 @@ class ConcluirExpedienteView(APIView):
 
         expediente.estado = estado_concluido
         expediente.fecha_cierre = now()
+        expediente.fecha_limite_estado = None
         expediente.motivo_conclusion = motivo
         expediente.observaciones_finales = serializer.validated_data[
             "observaciones_finales"
@@ -506,10 +543,11 @@ class DetalleExpedienteView(APIView):
     permission_classes = [IsAuthenticated, SoloLecturaPorRol]
 
     def get(self, request, pk):
+        marcar_expedientes_vencidos_como_inactivos()
+
         expediente = get_object_or_404(Expediente, pk=pk)
         serializer = ExpedienteSerializer(expediente)
         return Response(serializer.data)
-
 
 class CambiarEstadoExpedienteView(APIView):
     permission_classes = [IsAuthenticated, EsAnalistaOAdministrador]
@@ -546,6 +584,19 @@ class CambiarEstadoExpedienteView(APIView):
             )
 
         expediente.estado = estado
+
+        plazos = {
+            "registrado": timedelta(hours=72),
+            "en revisión": timedelta(days=7),
+            "en investigación": timedelta(days=30),
+        }
+
+        if estado.nombre.lower() in plazos:
+            expediente.fecha_limite_estado = now() + plazos[estado.nombre.lower()]
+        else:
+            expediente.fecha_limite_estado = None
+
+
         expediente.save()
 
         tipo_movimiento = obtener_tipo_movimiento_por_nombres(
